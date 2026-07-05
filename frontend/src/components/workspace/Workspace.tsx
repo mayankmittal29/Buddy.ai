@@ -1,5 +1,6 @@
 import type { ReactNode } from "react"
 import { cn } from "@/lib/utils"
+import { pageShell } from "@/lib/styles"
 
 interface PanelProps {
   children?: ReactNode
@@ -18,7 +19,8 @@ export function WorkspaceLeftPanel({ children, className }: PanelProps) {
   return (
     <aside
       className={cn(
-        "hidden w-64 shrink-0 overflow-y-auto border-r border-border p-4 md:block",
+        pageShell,
+        "hidden w-64 shrink-0 overflow-y-auto border-r border-border-subtle md:block",
         className
       )}
     >
@@ -29,7 +31,7 @@ export function WorkspaceLeftPanel({ children, className }: PanelProps) {
 
 export function WorkspaceCenterPanel({ children, className }: PanelProps) {
   return (
-    <main className={cn("flex min-w-0 flex-1 flex-col", className)}>
+    <main className={cn(pageShell, "flex min-w-0 flex-1 flex-col", className)}>
       {children}
     </main>
   )
@@ -39,7 +41,8 @@ export function WorkspaceRightPanel({ children, className }: PanelProps) {
   return (
     <aside
       className={cn(
-        "hidden w-72 shrink-0 overflow-y-auto border-l border-border p-4 lg:block",
+        pageShell,
+        "hidden w-72 shrink-0 overflow-y-auto border-l border-border-subtle lg:block",
         className
       )}
     >

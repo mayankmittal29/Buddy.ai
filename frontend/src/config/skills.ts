@@ -1,5 +1,8 @@
 export type SkillStatus = "active" | "coming-soon"
 
+/** Soft icon-badge background + icon color pair, e.g. "bg-violet-100 text-violet-600". */
+export type SkillAccent = { bg: string; text: string }
+
 export interface SkillConfig {
   id: string
   title: string
@@ -7,6 +10,7 @@ export interface SkillConfig {
   /** lucide-react icon component name, e.g. "Calendar" */
   icon: string
   status: SkillStatus
+  accent: SkillAccent
 }
 
 export const SKILLS: SkillConfig[] = [
@@ -16,6 +20,7 @@ export const SKILLS: SkillConfig[] = [
     description: "Plan your day and week around what actually matters.",
     icon: "Calendar",
     status: "active",
+    accent: { bg: "bg-violet-100", text: "text-violet-600" },
   },
   {
     id: "tasks",
@@ -23,6 +28,7 @@ export const SKILLS: SkillConfig[] = [
     description: "Track to-dos and get gentle nudges to follow through.",
     icon: "ListChecks",
     status: "active",
+    accent: { bg: "bg-blue-100", text: "text-blue-600" },
   },
   {
     id: "news",
@@ -30,6 +36,7 @@ export const SKILLS: SkillConfig[] = [
     description: "A quick, curated briefing on what's happening today.",
     icon: "Newspaper",
     status: "coming-soon",
+    accent: { bg: "bg-rose-100", text: "text-rose-600" },
   },
   {
     id: "career",
@@ -37,6 +44,7 @@ export const SKILLS: SkillConfig[] = [
     description: "Track goals, applications, and growth opportunities.",
     icon: "Briefcase",
     status: "coming-soon",
+    accent: { bg: "bg-amber-100", text: "text-amber-600" },
   },
   {
     id: "learning",
@@ -44,6 +52,7 @@ export const SKILLS: SkillConfig[] = [
     description: "Keep momentum on courses, books, and new skills.",
     icon: "GraduationCap",
     status: "coming-soon",
+    accent: { bg: "bg-teal-100", text: "text-teal-600" },
   },
   {
     id: "finance",
@@ -51,6 +60,7 @@ export const SKILLS: SkillConfig[] = [
     description: "Keep an eye on spending, budgets, and savings goals.",
     icon: "Wallet",
     status: "coming-soon",
+    accent: { bg: "bg-green-100", text: "text-green-600" },
   },
   {
     id: "habits",
@@ -58,6 +68,7 @@ export const SKILLS: SkillConfig[] = [
     description: "Build routines and keep streaks alive.",
     icon: "Repeat",
     status: "coming-soon",
+    accent: { bg: "bg-pink-100", text: "text-pink-600" },
   },
   {
     id: "knowledge-base",
@@ -65,6 +76,7 @@ export const SKILLS: SkillConfig[] = [
     description: "Your personal notes and reference material, searchable.",
     icon: "BookOpen",
     status: "coming-soon",
+    accent: { bg: "bg-purple-100", text: "text-purple-600" },
   },
   {
     id: "analytics",
@@ -72,5 +84,6 @@ export const SKILLS: SkillConfig[] = [
     description: "See trends across everything Buddy helps you manage.",
     icon: "BarChart3",
     status: "coming-soon",
+    accent: { bg: "bg-sky-100", text: "text-sky-600" },
   },
 ]

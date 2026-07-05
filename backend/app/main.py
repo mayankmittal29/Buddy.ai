@@ -4,7 +4,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.chat import router as chat_router
+from app.api.conversations import router as conversations_router
 from app.api.notifications import router as notifications_router
+from app.api.planner import router as planner_router
 from app.api.profile import router as profile_router
 from app.api.tasks import router as tasks_router
 from app.common.scheduler import start_scheduler, stop_scheduler
@@ -32,6 +34,8 @@ app.add_middleware(
 )
 
 app.include_router(chat_router)
+app.include_router(conversations_router)
+app.include_router(planner_router)
 app.include_router(profile_router)
 app.include_router(tasks_router)
 app.include_router(notifications_router)

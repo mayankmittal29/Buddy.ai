@@ -35,6 +35,12 @@ class Settings(BaseSettings):
     email_address: str = ""
     email_app_password: str = ""
 
+    # Cloudinary — used to store uploaded images (profile pictures for now);
+    # only the resulting secure_url is persisted in Postgres.
+    cloudinary_cloud_name: str = ""
+    cloudinary_api_key: str = ""
+    cloudinary_api_secret: str = ""
+
 
 @lru_cache
 def get_settings() -> Settings:

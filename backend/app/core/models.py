@@ -1,8 +1,8 @@
 import enum
-from datetime import datetime
+from datetime import date, datetime
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import JSON, Boolean, DateTime, Enum, ForeignKey, Text, func
+from sqlalchemy import JSON, Boolean, Date, DateTime, Enum, Float, ForeignKey, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.db import Base
@@ -19,11 +19,26 @@ class TaskStatus(str, enum.Enum):
     done = "done"
 
 
+class PlannerMode(str, enum.Enum):
+    daily = "daily"
+    weekly = "weekly"
+    monthly = "monthly"
+
+
+class PlannerStatus(str, enum.Enum):
+    pending = "pending"
+    done = "done"
+
+
 class Conversation(Base):
     __tablename__ = "conversations"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     skill_id: Mapped[str] = mapped_column(Text)
+    # Only used by skills with sub-modes (e.g. planner's daily/weekly/monthly)
+    # so each mode gets its own independent conversation list. Null for
+    # skills without sub-modes.
+    mode: Mapped[str | None] = mapped_column(Text, nullable=True)
     title: Mapped[str] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
@@ -65,6 +80,8 @@ class UserProfile(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(Text, default="")
+    # Cloudinary secure_url of the uploaded profile picture, if any.
+    avatar_url: Mapped[str] = mapped_column(Text, default="")
     timezone: Mapped[str] = mapped_column(Text, default="UTC")
     wake_time: Mapped[str] = mapped_column(Text, default="07:00")
     sleep_time: Mapped[str] = mapped_column(Text, default="23:00")
@@ -116,6 +133,23 @@ class Task(Base):
         Enum(TaskStatus, name="task_status"), default=TaskStatus.pending
     )
     reminder_sent: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
+class PlannerItem(Base):
+    __tablename__ = "planner_items"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    mode: Mapped[PlannerMode] = mapped_column(Enum(PlannerMode, name="planner_mode"))
+    title: Mapped[str] = mapped_column(Text)
+    details: Mapped[str | None] = mapped_column(Text, nullable=True)
+    hours_needed: Mapped[float | None] = mapped_column(Float, nullable=True)
+    deadline: Mapped[date | None] = mapped_column(Date, nullable=True)
+    status: Mapped[PlannerStatus] = mapped_column(
+        Enum(PlannerStatus, name="planner_status"), default=PlannerStatus.pending
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

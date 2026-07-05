@@ -2,22 +2,15 @@ import { useState } from "react"
 import { Check, Pencil, Trash2, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
+import { cardBase, cardHover, pillBase } from "@/lib/styles"
+import { formatDueLabel, toDatetimeLocalValue } from "@/lib/datetime"
 import type { Task, TaskPriority, TaskUpdateInput } from "@/components/tasks/api"
 
-const PRIORITY_STYLES: Record<TaskPriority, string> = {
-  urgent: "bg-red-500/15 text-red-700 border-red-500/30 dark:text-red-400",
-  normal: "bg-yellow-500/15 text-yellow-700 border-yellow-500/30 dark:text-yellow-400",
-  light: "bg-green-500/15 text-green-700 border-green-500/30 dark:text-green-400",
-}
-
-function formatDueDate(due_at: string | null): string | null {
-  if (!due_at) return null
-  return new Date(due_at).toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-  })
+const PRIORITY_ACCENT: Record<TaskPriority, { border: string; badge: string }> = {
+  urgent: { border: "border-l-rose-500", badge: "bg-rose-50 text-rose-700" },
+  normal: { border: "border-l-amber-500", badge: "bg-amber-50 text-amber-700" },
+  light: { border: "border-l-emerald-500", badge: "bg-emerald-50 text-emerald-700" },
 }
 
 interface TaskRowProps {
@@ -25,13 +18,16 @@ interface TaskRowProps {
   onComplete: (id: number) => void
   onUpdate: (id: number, input: TaskUpdateInput) => Promise<void>
   onDelete: (id: number) => void
+  onOpenDetail: (task: Task) => void
 }
 
-export function TaskRow({ task, onComplete, onUpdate, onDelete }: TaskRowProps) {
+export function TaskRow({ task, onComplete, onUpdate, onDelete, onOpenDetail }: TaskRowProps) {
   const [editing, setEditing] = useState(false)
   const [title, setTitle] = useState(task.title)
   const [priority, setPriority] = useState<TaskPriority>(task.priority)
-  const [dueDate, setDueDate] = useState(task.due_at ? task.due_at.slice(0, 10) : "")
+  const [dueDateTime, setDueDateTime] = useState(
+    task.due_at ? toDatetimeLocalValue(task.due_at) : ""
+  )
   const [saving, setSaving] = useState(false)
 
   async function handleSave() {
@@ -40,7 +36,7 @@ export function TaskRow({ task, onComplete, onUpdate, onDelete }: TaskRowProps) 
       await onUpdate(task.id, {
         title: title.trim() || task.title,
         priority,
-        due_at: dueDate ? new Date(dueDate).toISOString() : null,
+        due_at: dueDateTime ? new Date(dueDateTime).toISOString() : null,
       })
       setEditing(false)
     } finally {
@@ -51,13 +47,13 @@ export function TaskRow({ task, onComplete, onUpdate, onDelete }: TaskRowProps) 
   function handleCancel() {
     setTitle(task.title)
     setPriority(task.priority)
-    setDueDate(task.due_at ? task.due_at.slice(0, 10) : "")
+    setDueDateTime(task.due_at ? toDatetimeLocalValue(task.due_at) : "")
     setEditing(false)
   }
 
   if (editing) {
     return (
-      <li className="flex flex-col gap-2 rounded-lg border border-border p-2">
+      <li className={cn(cardBase, "flex flex-col gap-2")}>
         <Input value={title} onChange={(e) => setTitle(e.target.value)} />
         <div className="flex items-center gap-2">
           <select
@@ -70,9 +66,9 @@ export function TaskRow({ task, onComplete, onUpdate, onDelete }: TaskRowProps) 
             <option value="light">Light</option>
           </select>
           <Input
-            type="date"
-            value={dueDate}
-            onChange={(e) => setDueDate(e.target.value)}
+            type="datetime-local"
+            value={dueDateTime}
+            onChange={(e) => setDueDateTime(e.target.value)}
             className="flex-1"
           />
         </div>
@@ -88,39 +84,52 @@ export function TaskRow({ task, onComplete, onUpdate, onDelete }: TaskRowProps) 
     )
   }
 
-  const dueLabel = formatDueDate(task.due_at)
+  const dueLabel = task.due_at ? formatDueLabel(task.due_at) : null
+  const accent = PRIORITY_ACCENT[task.priority]
+  const isDone = task.status === "done"
 
   return (
-    <li className="flex items-center gap-2 rounded-lg border border-border p-2">
-      <div className="min-w-0 flex-1">
+    <li
+      className={cn(
+        cardBase,
+        cardHover,
+        "group flex items-center gap-3 border-l-4",
+        accent.border
+      )}
+    >
+      <button
+        type="button"
+        onClick={() => !isDone && onComplete(task.id)}
+        disabled={isDone}
+        aria-label={isDone ? "Completed" : "Mark as complete"}
+        className={cn(
+          "flex size-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors duration-150",
+          isDone
+            ? "border-success bg-success"
+            : "border-border-subtle hover:border-success"
+        )}
+      >
+        {isDone && <Check className="size-3 text-white" />}
+      </button>
+
+      <div className="min-w-0 flex-1 cursor-pointer" onClick={() => onOpenDetail(task)}>
         <div className="flex items-center gap-2">
           <span
             className={cn(
               "truncate text-sm",
-              task.status === "done" && "text-muted-foreground line-through"
+              isDone && "text-muted-foreground line-through"
             )}
           >
             {task.title}
           </span>
-          <Badge className={cn("border capitalize", PRIORITY_STYLES[task.priority])}>
+          <span className={cn(pillBase, accent.badge, "capitalize")}>
             {task.priority}
-          </Badge>
+          </span>
         </div>
-        {dueLabel && (
-          <span className="text-xs text-muted-foreground">Due {dueLabel}</span>
-        )}
+        {dueLabel && <span className="text-xs text-slate-500">Due {dueLabel}</span>}
       </div>
-      <div className="flex shrink-0 items-center gap-1">
-        {task.status === "pending" && (
-          <Button
-            size="icon-sm"
-            variant="ghost"
-            aria-label="Complete task"
-            onClick={() => onComplete(task.id)}
-          >
-            <Check />
-          </Button>
-        )}
+
+      <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100">
         <Button
           size="icon-sm"
           variant="ghost"
