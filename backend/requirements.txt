@@ -1,0 +1,17 @@
+fastapi
+uvicorn[standard]
+google-adk
+langsmith
+sqlalchemy
+asyncpg
+psycopg2-binary
+pgvector
+python-dotenv
+pydantic
+pydantic-settings
+alembic
+apscheduler
+pyyaml
+aiosqlite
+google-genai
+litellm>=1.83.7,<=1.83.14
