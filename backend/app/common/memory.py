@@ -1,30 +1,16 @@
-from google import genai
 from google.genai import types
 from sqlalchemy import select
 
-from app.core.config import get_settings
+from app.common.gemini_client import get_gemini_client
 from app.core.db import AsyncSessionLocal
 from app.core.models import MemoryFact
 
 EMBEDDING_MODEL = "gemini-embedding-001"
 EMBEDDING_DIM = 768
 
-_client: genai.Client | None = None
-
-
-def _get_client() -> genai.Client:
-    # Built lazily, with the key taken directly from settings — this module
-    # must work standalone, without depending on some other module (e.g.
-    # app.core.agent) having already propagated GEMINI_API_KEY into the
-    # environment as a side effect of import order.
-    global _client
-    if _client is None:
-        _client = genai.Client(api_key=get_settings().gemini_api_key)
-    return _client
-
 
 async def _embed(text: str, task_type: str) -> list[float]:
-    response = await _get_client().aio.models.embed_content(
+    response = await get_gemini_client().aio.models.embed_content(
         model=EMBEDDING_MODEL,
         contents=text,
         config=types.EmbedContentConfig(

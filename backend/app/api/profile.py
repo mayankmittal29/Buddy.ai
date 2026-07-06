@@ -1,27 +1,16 @@
 import asyncio
 
-import cloudinary
 import cloudinary.uploader
 from fastapi import APIRouter, File, HTTPException, UploadFile
 from pydantic import BaseModel
 
-from app.core.config import get_settings
+from app.common.cloudinary_client import ensure_cloudinary_configured
 from app.core.db import AsyncSessionLocal
 from app.core.models import UserProfile
 
 router = APIRouter()
 
 PROFILE_ID = 1
-
-settings = get_settings()
-
-if settings.cloudinary_cloud_name:
-    cloudinary.config(
-        cloud_name=settings.cloudinary_cloud_name,
-        api_key=settings.cloudinary_api_key,
-        api_secret=settings.cloudinary_api_secret,
-        secure=True,
-    )
 
 
 class ProfileData(BaseModel):
@@ -66,7 +55,7 @@ async def upload_avatar(file: UploadFile = File(...)) -> ProfileData:
     Only the resulting secure_url is persisted in Postgres — the image
     itself lives in Cloudinary.
     """
-    if not settings.cloudinary_cloud_name:
+    if not ensure_cloudinary_configured():
         raise HTTPException(
             status_code=503,
             detail="Image storage isn't configured (missing Cloudinary credentials).",

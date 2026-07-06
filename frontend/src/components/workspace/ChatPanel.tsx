@@ -33,6 +33,10 @@ interface ChatPanelProps {
    * daily/weekly/monthly) — sent with each message so the backend can tag
    * new conversations and adapt the model's behavior to the active mode. */
   mode?: string
+  /** Set this (bumping `nonce` each time) to send a message programmatically
+   * — e.g. a "Skill Gap Analysis" helper form composing a message from a
+   * resume + JD instead of the user typing it in directly. */
+  externalTrigger?: { text: string; nonce: number }
 }
 
 function conversationStorageKey(skillId: string) {
@@ -84,6 +88,7 @@ export function ChatPanel({
   onConversationIdChange,
   onTurnComplete,
   mode,
+  externalTrigger,
 }: ChatPanelProps) {
   const isControlled = controlledConversationId !== undefined
   const storageKey = conversationStorageKey(skillId)
@@ -124,6 +129,7 @@ export function ChatPanel({
   const [isStreaming, setIsStreaming] = useState(false)
 
   const scrollRef = useRef<HTMLDivElement>(null)
+  const processedTriggerNonceRef = useRef(0)
 
   // Uncontrolled mode: switching skills means switching conversations too.
   useEffect(() => {
@@ -178,11 +184,24 @@ export function ChatPanel({
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight })
   }, [messages])
 
-  async function sendMessage() {
-    const text = input.trim()
+  // Programmatic send trigger — nonce 0 means "no trigger yet", so this
+  // never fires spuriously on mount. Guarded by a ref (not just the nonce
+  // dependency) because StrictMode's dev-only double-invoke would otherwise
+  // send the same message twice — the ref persists across that replay, the
+  // effect's own closure doesn't.
+  useEffect(() => {
+    if (!externalTrigger || externalTrigger.nonce === 0) return
+    if (processedTriggerNonceRef.current === externalTrigger.nonce) return
+    processedTriggerNonceRef.current = externalTrigger.nonce
+    sendMessage(externalTrigger.text)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [externalTrigger?.nonce])
+
+  async function sendMessage(overrideText?: string) {
+    const text = (overrideText ?? input).trim()
     if (!text || isStreaming) return
 
-    setInput("")
+    if (overrideText === undefined) setInput("")
     const now = new Date().toISOString()
     const userMessage: ChatMessage = {
       id: crypto.randomUUID(),
@@ -345,7 +364,7 @@ export function ChatPanel({
           />
           <button
             type="button"
-            onClick={sendMessage}
+            onClick={() => sendMessage()}
             disabled={isStreaming || !input.trim()}
             aria-label="Send message"
             className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary text-white transition-all duration-200 hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-50"

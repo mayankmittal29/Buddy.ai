@@ -6,6 +6,8 @@ import About from '@/pages/About'
 import Skill from '@/pages/Skill'
 import TasksSkill from '@/pages/skills/TasksSkill'
 import PlannerSkill from '@/pages/skills/PlannerSkill'
+import LearningSkill from '@/pages/skills/LearningSkill'
+import CareerSkill from '@/pages/skills/CareerSkill'
 
 export default function App() {
   return (
@@ -42,6 +44,8 @@ export default function App() {
           <Route path="/about" element={<About />} />
           <Route path="/skills/tasks" element={<TasksSkill />} />
           <Route path="/skills/planner" element={<PlannerSkill />} />
+          <Route path="/skills/learning" element={<LearningSkill />} />
+          <Route path="/skills/career" element={<CareerSkill />} />
           <Route path="/skills/:skillId" element={<Skill />} />
         </Routes>
       </div>

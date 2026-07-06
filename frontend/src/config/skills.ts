@@ -43,7 +43,7 @@ export const SKILLS: SkillConfig[] = [
     title: "Career",
     description: "Track goals, applications, and growth opportunities.",
     icon: "Briefcase",
-    status: "coming-soon",
+    status: "active",
     accent: { bg: "bg-amber-100", text: "text-amber-600" },
   },
   {
@@ -51,7 +51,7 @@ export const SKILLS: SkillConfig[] = [
     title: "Learning",
     description: "Keep momentum on courses, books, and new skills.",
     icon: "GraduationCap",
-    status: "coming-soon",
+    status: "active",
     accent: { bg: "bg-teal-100", text: "text-teal-600" },
   },
   {

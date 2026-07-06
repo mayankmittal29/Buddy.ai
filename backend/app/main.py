@@ -3,8 +3,10 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.career import router as career_router
 from app.api.chat import router as chat_router
 from app.api.conversations import router as conversations_router
+from app.api.learning import router as learning_router
 from app.api.notifications import router as notifications_router
 from app.api.planner import router as planner_router
 from app.api.profile import router as profile_router
@@ -33,8 +35,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(career_router)
 app.include_router(chat_router)
 app.include_router(conversations_router)
+app.include_router(learning_router)
 app.include_router(planner_router)
 app.include_router(profile_router)
 app.include_router(tasks_router)

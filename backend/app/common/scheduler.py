@@ -8,12 +8,23 @@ from sqlalchemy import select
 from app.common.notifications import send_email
 from app.common.recurrence import compute_next_due_at
 from app.core.db import AsyncSessionLocal
-from app.core.models import NotificationPreferences, Task, TaskStatus
+from app.core.models import (
+    Certification,
+    CertificationStatus,
+    Course,
+    CourseStatus,
+    NotificationPreferences,
+    Task,
+    TaskStatus,
+)
 
 logger = logging.getLogger(__name__)
 
 REMINDER_WINDOW_MINUTES = 10
 CHECK_INTERVAL_MINUTES = 1
+LEARNING_CHECK_INTERVAL_MINUTES = 60
+DEADLINE_WINDOW_DAYS = 1
+INACTIVITY_DAYS = 10
 PREFS_ID = 1
 
 scheduler = AsyncIOScheduler()
@@ -83,6 +94,109 @@ async def check_due_tasks() -> None:
         await db.commit()
 
 
+async def check_course_deadlines() -> None:
+    """Email a reminder for courses with a deadline within 1 day.
+
+    Same human-in-the-loop opt-in gating as check_due_tasks. Each course
+    gets reminded once per deadline (deadline_reminder_sent) — resets if the
+    deadline is later changed (see app/api/learning.py).
+    """
+    async with AsyncSessionLocal() as db:
+        prefs = await db.get(NotificationPreferences, PREFS_ID)
+        if prefs is None or not prefs.channels.get("email"):
+            return
+        if not prefs.email_address:
+            return
+
+        now = datetime.now(timezone.utc)
+        window_end = now + timedelta(days=DEADLINE_WINDOW_DAYS)
+
+        stmt = select(Course).where(
+            Course.status != CourseStatus.done,
+            Course.deadline_reminder_sent.is_(False),
+            Course.deadline.is_not(None),
+            Course.deadline >= now.date(),
+            Course.deadline <= window_end.date(),
+        )
+        result = await db.execute(stmt)
+        courses = result.scalars().all()
+
+        for course in courses:
+            subject = f'Reminder: "{course.title}" is due soon'
+            body = f'"{course.title}" has a deadline of {course.deadline.isoformat()}.'
+            try:
+                await asyncio.to_thread(send_email, prefs.email_address, subject, body)
+            except Exception:
+                logger.exception(
+                    "Failed to send deadline reminder for course %s", course.id
+                )
+                continue
+            course.deadline_reminder_sent = True
+
+        await db.commit()
+
+
+async def check_inactive_learning_items() -> None:
+    """Email a single nudge digest for courses/certifications untouched for
+    10+ days and not yet done.
+
+    Each item is nudged once per inactivity period (inactivity_nudge_sent) —
+    resets whenever the row is next meaningfully edited (see
+    app/api/learning.py), so a new nudge can fire after another 10 quiet days.
+    """
+    async with AsyncSessionLocal() as db:
+        prefs = await db.get(NotificationPreferences, PREFS_ID)
+        if prefs is None or not prefs.channels.get("email"):
+            return
+        if not prefs.email_address:
+            return
+
+        cutoff = datetime.now(timezone.utc) - timedelta(days=INACTIVITY_DAYS)
+
+        course_result = await db.execute(
+            select(Course).where(
+                Course.status != CourseStatus.done,
+                Course.inactivity_nudge_sent.is_(False),
+                Course.last_updated_at <= cutoff,
+            )
+        )
+        inactive_courses = course_result.scalars().all()
+
+        cert_result = await db.execute(
+            select(Certification).where(
+                Certification.status != CertificationStatus.completed,
+                Certification.inactivity_nudge_sent.is_(False),
+                Certification.last_updated_at <= cutoff,
+            )
+        )
+        inactive_certs = cert_result.scalars().all()
+
+        if not inactive_courses and not inactive_certs:
+            return
+
+        lines = [
+            f'- Course "{c.title}" — no updates in over {INACTIVITY_DAYS} days'
+            for c in inactive_courses
+        ] + [
+            f'- Certification "{c.title}" — no updates in over {INACTIVITY_DAYS} days'
+            for c in inactive_certs
+        ]
+        subject = "You've got some stalled learning items"
+        body = "These haven't been touched in a while:\n\n" + "\n".join(lines)
+
+        try:
+            await asyncio.to_thread(send_email, prefs.email_address, subject, body)
+        except Exception:
+            logger.exception("Failed to send inactivity nudge email")
+            return
+
+        for course in inactive_courses:
+            course.inactivity_nudge_sent = True
+        for cert in inactive_certs:
+            cert.inactivity_nudge_sent = True
+        await db.commit()
+
+
 def start_scheduler() -> None:
     if not scheduler.running:
         scheduler.add_job(
@@ -90,6 +204,20 @@ def start_scheduler() -> None:
             "interval",
             minutes=CHECK_INTERVAL_MINUTES,
             id="task_due_reminders",
+            replace_existing=True,
+        )
+        scheduler.add_job(
+            check_course_deadlines,
+            "interval",
+            minutes=LEARNING_CHECK_INTERVAL_MINUTES,
+            id="course_deadline_reminders",
+            replace_existing=True,
+        )
+        scheduler.add_job(
+            check_inactive_learning_items,
+            "interval",
+            minutes=LEARNING_CHECK_INTERVAL_MINUTES,
+            id="learning_inactivity_nudges",
             replace_existing=True,
         )
         scheduler.start()

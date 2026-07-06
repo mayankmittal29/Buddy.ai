@@ -1,21 +1,8 @@
 import logging
 
-from google import genai
-
-from app.core.config import get_settings
+from app.common.gemini_client import get_gemini_client
 
 logger = logging.getLogger(__name__)
-
-_client: genai.Client | None = None
-
-
-def _get_client() -> genai.Client:
-    # Same lazy, settings-sourced init pattern as app.common.memory — this
-    # module must work standalone regardless of import order.
-    global _client
-    if _client is None:
-        _client = genai.Client(api_key=get_settings().gemini_api_key)
-    return _client
 
 
 async def summarize_title(messages: list[tuple[str, str]]) -> str:
@@ -36,7 +23,7 @@ async def summarize_title(messages: list[tuple[str, str]]) -> str:
         f"wants help with):\n\n{transcript}"
     )
     try:
-        response = await _get_client().aio.models.generate_content(
+        response = await get_gemini_client().aio.models.generate_content(
             model="gemini-2.5-flash", contents=prompt
         )
         return (response.text or "").strip().strip('"')

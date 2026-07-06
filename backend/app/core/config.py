@@ -35,11 +35,24 @@ class Settings(BaseSettings):
     email_address: str = ""
     email_app_password: str = ""
 
-    # Cloudinary — used to store uploaded images (profile pictures for now);
-    # only the resulting secure_url is persisted in Postgres.
+    # Cloudinary — used to store uploaded images (profile pictures, cert
+    # images, DOCX resumes); only the resulting secure_url is persisted in
+    # Postgres.
     cloudinary_cloud_name: str = ""
     cloudinary_api_key: str = ""
     cloudinary_api_secret: str = ""
+
+    # Cloudflare R2 (S3-compatible) — used specifically for PDF resumes, so
+    # they can be served for inline browser preview without Cloudinary's
+    # raw-resource attachment behavior. Only the resulting public URL is
+    # persisted in Postgres.
+    r2_account_id: str = ""
+    r2_access_key_id: str = ""
+    r2_secret_access_key: str = ""
+    r2_bucket_name: str = ""
+    # Public base URL for the bucket (either the R2.dev dev subdomain with
+    # public access enabled, or a bound custom domain) — no trailing slash.
+    r2_public_url_base: str = ""
 
 
 @lru_cache

@@ -17,3 +17,6 @@ google-genai
 litellm>=1.83.7,<=1.83.14
 cloudinary
 reportlab
+pdfplumber
+python-docx
+boto3
