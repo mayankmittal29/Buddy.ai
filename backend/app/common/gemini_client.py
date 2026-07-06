@@ -9,7 +9,8 @@ def get_gemini_client() -> genai.Client:
     """Lazily build a Gemini client, with the key taken directly from
     settings — usable standalone regardless of import order. Embeddings,
     title summarization, and roadmap generation all use Gemini specifically
-    for this, regardless of whatever LLM_PROVIDER powers the main chat model.
+    for this, regardless of which provider ends up serving a given skill's
+    chat model (see app/core/model_router.py).
     """
     global _client
     if _client is None:

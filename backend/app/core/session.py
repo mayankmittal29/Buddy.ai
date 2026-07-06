@@ -28,13 +28,13 @@ _runner_cache: dict[str, Runner] = {}
 def get_runner_for_skill(skill_id: str) -> Runner:
     """Return the Runner to use for a given skill_id.
 
-    Skills with their own tools.py get a Runner around a dedicated,
-    tool-scoped agent (see get_agent_for_skill); others share the base
-    runner. All runners share the same session_service.
+    Every skill_id gets its own cached Runner around its own dedicated
+    agent (see get_agent_for_skill) — each skill's model is resolved
+    independently via the tier router, so no two skills can safely share
+    one Runner even if neither has its own tools.py. All runners share the
+    same session_service.
     """
     agent = get_agent_for_skill(skill_id)
-    if agent is root_agent:
-        return runner
 
     if skill_id not in _runner_cache:
         _runner_cache[skill_id] = Runner(

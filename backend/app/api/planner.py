@@ -109,9 +109,14 @@ async def export_planner_pdf(mode: PlannerMode = Query(...)) -> StreamingRespons
         items = list(result.scalars().all())
 
     buffer = BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=letter, title=f"{mode.value.capitalize()} Plan")
+    doc = SimpleDocTemplate(
+        buffer, pagesize=letter, title=f"{mode.value.capitalize()} Plan"
+    )
     styles = getSampleStyleSheet()
-    elements = [Paragraph(f"{mode.value.capitalize()} Plan", styles["Title"]), Spacer(1, 12)]
+    elements = [
+        Paragraph(f"{mode.value.capitalize()} Plan", styles["Title"]),
+        Spacer(1, 12),
+    ]
 
     table_data = [["Task", "Hours", "Deadline", "Status"]]
     for item in items:
@@ -134,7 +139,12 @@ async def export_planner_pdf(mode: PlannerMode = Query(...)) -> StreamingRespons
                 ("FONTSIZE", (0, 0), (-1, -1), 10),
                 ("BOTTOMPADDING", (0, 0), (-1, 0), 8),
                 ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#E2E8F0")),
-                ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#F5F6FA")]),
+                (
+                    "ROWBACKGROUNDS",
+                    (0, 1),
+                    (-1, -1),
+                    [colors.white, colors.HexColor("#F5F6FA")],
+                ),
                 ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
             ]
         )
@@ -206,7 +216,9 @@ async def update_planner_item(item_id: int, data: PlannerItemUpdate) -> PlannerI
     async with AsyncSessionLocal() as db:
         item = await db.get(PlannerItem, item_id)
         if item is None:
-            raise HTTPException(status_code=404, detail=f"planner item {item_id} not found")
+            raise HTTPException(
+                status_code=404, detail=f"planner item {item_id} not found"
+            )
         for field, value in data.model_dump(exclude_unset=True).items():
             setattr(item, field, value)
         await db.commit()
@@ -219,6 +231,8 @@ async def delete_planner_item(item_id: int) -> None:
     async with AsyncSessionLocal() as db:
         item = await db.get(PlannerItem, item_id)
         if item is None:
-            raise HTTPException(status_code=404, detail=f"planner item {item_id} not found")
+            raise HTTPException(
+                status_code=404, detail=f"planner item {item_id} not found"
+            )
         await db.delete(item)
         await db.commit()

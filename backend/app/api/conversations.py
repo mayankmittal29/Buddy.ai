@@ -32,7 +32,9 @@ class MessageOut(BaseModel):
     response_model=ConversationOut,
     status_code=201,
 )
-async def create_conversation(skill_id: str, mode: str | None = None) -> ConversationOut:
+async def create_conversation(
+    skill_id: str, mode: str | None = None
+) -> ConversationOut:
     """Create an empty conversation up front (e.g. "Start new conversation" in
     the UI) so it shows up in the list immediately, before any message is
     sent. Its title is a placeholder until the opening exchange summarizes it.
@@ -57,7 +59,9 @@ async def create_conversation(skill_id: str, mode: str | None = None) -> Convers
 @router.get(
     "/api/skills/{skill_id}/conversations", response_model=list[ConversationOut]
 )
-async def list_conversations(skill_id: str, mode: str | None = None) -> list[ConversationOut]:
+async def list_conversations(
+    skill_id: str, mode: str | None = None
+) -> list[ConversationOut]:
     async with AsyncSessionLocal() as db:
         last_message_at = (
             select(func.max(Message.created_at))
@@ -119,6 +123,8 @@ async def delete_conversation(skill_id: str, conversation_id: int) -> None:
         conversation = await db.get(Conversation, conversation_id)
         if conversation is None or conversation.skill_id != skill_id:
             raise HTTPException(status_code=404, detail="conversation not found")
-        await db.execute(delete(Message).where(Message.conversation_id == conversation_id))
+        await db.execute(
+            delete(Message).where(Message.conversation_id == conversation_id)
+        )
         await db.delete(conversation)
         await db.commit()

@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from "react"
-import { Briefcase, ExternalLink, Pencil, Plus, Trash2, X } from "lucide-react"
+import { useCallback, useEffect, useMemo, useState } from "react"
+import { Briefcase, Pencil, Plus, Search, Trash2, X } from "lucide-react"
 import {
+  JOB_CATEGORIES,
   type JobApplication,
   type JobApplicationStatus,
   listApplications,
@@ -19,15 +20,17 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select"
-import { cardBase } from "@/lib/styles"
+import { fuzzyMatch } from "@/lib/fuzzy"
+import { cardBase, pillBase } from "@/lib/styles"
 import { cn } from "@/lib/utils"
 
 const COLUMNS: { status: JobApplicationStatus; label: string; accent: string }[] = [
-  { status: "applied", label: "Applied", accent: "border-t-blue-500" },
-  { status: "interview", label: "Interview", accent: "border-t-amber-500" },
-  { status: "offer", label: "Offer", accent: "border-t-emerald-500" },
-  { status: "rejected", label: "Rejected", accent: "border-t-rose-500" },
-  { status: "withdrawn", label: "Withdrawn", accent: "border-t-slate-400" },
+  { status: "just_found", label: "Just Found", accent: "border-l-purple-500" },
+  { status: "applied", label: "Applied", accent: "border-l-blue-500" },
+  { status: "interview", label: "Interview", accent: "border-l-amber-500" },
+  { status: "offer", label: "Offer", accent: "border-l-emerald-500" },
+  { status: "rejected", label: "Rejected", accent: "border-l-rose-500" },
+  { status: "withdrawn", label: "Withdrawn", accent: "border-l-slate-400" },
 ]
 
 interface KanbanBoardProps {
@@ -42,6 +45,7 @@ interface FormState {
   role: string
   date_applied: string
   ctc: string
+  category: string
   source_link: string
   referral_taken_by: string
   hr_contact: string
@@ -54,11 +58,37 @@ const EMPTY_FORM: FormState = {
   role: "",
   date_applied: "",
   ctc: "",
+  category: "",
   source_link: "",
   referral_taken_by: "",
   hr_contact: "",
   notes: "",
-  status: "applied",
+  status: "just_found",
+}
+
+function FilterPill({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean
+  onClick: () => void
+  children: React.ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        pillBase,
+        active
+          ? "bg-primary text-white"
+          : "border border-border-subtle text-slate-500 hover:border-primary/40"
+      )}
+    >
+      {children}
+    </button>
+  )
 }
 
 export function KanbanBoard({ refreshToken }: KanbanBoardProps) {
@@ -66,10 +96,16 @@ export function KanbanBoard({ refreshToken }: KanbanBoardProps) {
   const [loading, setLoading] = useState(true)
   const [formOpen, setFormOpen] = useState(false)
   const [form, setForm] = useState<FormState>(EMPTY_FORM)
+  const [ctcError, setCtcError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [draggingId, setDraggingId] = useState<number | null>(null)
   const [dragOverStatus, setDragOverStatus] = useState<JobApplicationStatus | null>(null)
   const [detailApp, setDetailApp] = useState<JobApplication | null>(null)
+
+  const [search, setSearch] = useState("")
+  const [categoryFilter, setCategoryFilter] = useState<string>("all")
+  const [ctcMin, setCtcMin] = useState("")
+  const [ctcMax, setCtcMax] = useState("")
 
   const refresh = useCallback(async () => {
     const result = await listApplications()
@@ -87,8 +123,37 @@ export function KanbanBoard({ refreshToken }: KanbanBoardProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refreshToken])
 
+  const filteredApplications = useMemo(() => {
+    let result = applications
+
+    if (categoryFilter !== "all") {
+      result = result.filter((a) => a.category === categoryFilter)
+    }
+
+    const min = ctcMin.trim() ? Number(ctcMin) : null
+    const max = ctcMax.trim() ? Number(ctcMax) : null
+    if (min != null || max != null) {
+      result = result.filter((a) => {
+        if (!a.ctc) return false
+        const parsed = parseInt(a.ctc, 10)
+        if (Number.isNaN(parsed)) return false
+        if (min != null && parsed < min) return false
+        if (max != null && parsed > max) return false
+        return true
+      })
+    }
+
+    const query = search.trim()
+    if (query) {
+      result = result.filter((a) => fuzzyMatch(query, a.company) || fuzzyMatch(query, a.role))
+    }
+
+    return result
+  }, [applications, categoryFilter, ctcMin, ctcMax, search])
+
   function openAddForm() {
     setForm(EMPTY_FORM)
+    setCtcError(null)
     setFormOpen(true)
   }
 
@@ -99,18 +164,29 @@ export function KanbanBoard({ refreshToken }: KanbanBoardProps) {
       role: app.role,
       date_applied: app.date_applied ?? "",
       ctc: app.ctc ?? "",
+      category: app.category ?? "",
       source_link: app.source_link ?? "",
       referral_taken_by: app.referral_taken_by ?? "",
       hr_contact: app.hr_contact ?? "",
       notes: app.notes ?? "",
       status: app.status,
     })
+    setCtcError(null)
     setFormOpen(true)
+  }
+
+  function handleCtcChange(value: string) {
+    setForm((f) => ({ ...f, ctc: value }))
+    setCtcError(value.trim() && !/^\d+$/.test(value.trim()) ? "Enter numbers only (e.g. 18)" : null)
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!form.company.trim() || !form.role.trim()) return
+    if (form.ctc.trim() && !/^\d+$/.test(form.ctc.trim())) {
+      setCtcError("Enter numbers only (e.g. 18)")
+      return
+    }
     setSaving(true)
     try {
       const payload = {
@@ -118,6 +194,7 @@ export function KanbanBoard({ refreshToken }: KanbanBoardProps) {
         role: form.role.trim(),
         date_applied: form.date_applied || null,
         ctc: form.ctc.trim() || null,
+        category: form.category || null,
         source_link: form.source_link.trim() || null,
         referral_taken_by: form.referral_taken_by.trim() || null,
         hr_contact: form.hr_contact.trim() || null,
@@ -172,12 +249,64 @@ export function KanbanBoard({ refreshToken }: KanbanBoardProps) {
         </Button>
       </div>
 
+      <div className="relative">
+        <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-slate-400" />
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search company or role…"
+          className="h-9 w-full rounded-full border border-border-subtle bg-canvas pr-8 pl-9 text-sm outline-none transition-colors duration-150 focus:border-primary/40"
+        />
+        {search && (
+          <button
+            type="button"
+            onClick={() => setSearch("")}
+            aria-label="Clear search"
+            className="absolute top-1/2 right-2.5 -translate-y-1/2 text-slate-400 hover:text-foreground"
+          >
+            <X className="size-3.5" />
+          </button>
+        )}
+      </div>
+
+      <div className="flex flex-wrap gap-1.5">
+        <FilterPill active={categoryFilter === "all"} onClick={() => setCategoryFilter("all")}>
+          All categories
+        </FilterPill>
+        {JOB_CATEGORIES.map((c) => (
+          <FilterPill key={c} active={categoryFilter === c} onClick={() => setCategoryFilter(c)}>
+            {c}
+          </FilterPill>
+        ))}
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-xs text-muted-foreground">CTC (LPA) range:</span>
+        <Input
+          type="number"
+          min={0}
+          value={ctcMin}
+          onChange={(e) => setCtcMin(e.target.value)}
+          placeholder="Min"
+          className="h-7 w-20 px-2 text-xs"
+        />
+        <span className="text-xs text-muted-foreground">to</span>
+        <Input
+          type="number"
+          min={0}
+          value={ctcMax}
+          onChange={(e) => setCtcMax(e.target.value)}
+          placeholder="Max"
+          className="h-7 w-20 px-2 text-xs"
+        />
+      </div>
+
       {loading ? (
         <p className="text-sm text-muted-foreground">Loading…</p>
       ) : (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        <div className="flex flex-col gap-2">
           {COLUMNS.map(({ status, label, accent }) => {
-            const cards = applications.filter((a) => a.status === status)
+            const cards = filteredApplications.filter((a) => a.status === status)
             return (
               <div
                 key={status}
@@ -191,103 +320,70 @@ export function KanbanBoard({ refreshToken }: KanbanBoardProps) {
                   handleDrop(status)
                 }}
                 className={cn(
-                  "flex flex-col gap-2 rounded-xl border-t-4 bg-canvas p-2.5 transition-colors duration-150",
+                  "flex items-stretch gap-3 rounded-xl border-l-4 bg-canvas p-2.5 transition-colors duration-150",
                   accent,
                   dragOverStatus === status && "bg-primary-50"
                 )}
               >
-                <h3 className="flex items-center justify-between px-1 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-                  {label}
-                  <span className="text-[10px] font-normal text-slate-400">{cards.length}</span>
-                </h3>
-                <div className="flex min-h-16 flex-col gap-2">
-                  {cards.map((app) => (
-                    <div
-                      key={app.id}
-                      draggable
-                      onDragStart={() => setDraggingId(app.id)}
-                      onDragEnd={() => setDraggingId(null)}
-                      onClick={() => setDetailApp(app)}
-                      className={cn(
-                        "cursor-grab rounded-lg border border-border-subtle bg-surface p-2.5 shadow-card active:cursor-grabbing",
-                        draggingId === app.id && "opacity-50"
-                      )}
-                    >
-                      <div className="flex items-start justify-between gap-1">
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-medium text-foreground">
-                            {app.company}
-                          </p>
-                          <p className="truncate text-xs text-slate-500">{app.role}</p>
-                        </div>
-                        <div className="flex shrink-0 gap-0.5">
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              openEditForm(app)
-                            }}
-                            aria-label="Edit application"
-                            className="rounded-full p-1 text-slate-400 transition-colors duration-150 hover:bg-primary-50 hover:text-primary"
-                          >
-                            <Pencil className="size-3" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              handleDelete(app.id)
-                            }}
-                            aria-label="Delete application"
-                            className="rounded-full p-1 text-slate-400 transition-colors duration-150 hover:bg-danger/10 hover:text-danger"
-                          >
-                            <Trash2 className="size-3" />
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className="mt-1.5 space-y-0.5 text-[11px] text-slate-500">
-                        {app.date_applied && (
-                          <p>
-                            Applied{" "}
-                            {new Date(app.date_applied).toLocaleDateString(undefined, {
-                              month: "short",
-                              day: "numeric",
-                            })}
-                          </p>
+                <div className="flex w-24 shrink-0 flex-col justify-center px-1">
+                  <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                    {label}
+                  </p>
+                  <p className="text-[10px] text-slate-400">
+                    {cards.length} {cards.length === 1 ? "app" : "apps"}
+                  </p>
+                </div>
+                <div className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto py-0.5">
+                  {cards.length === 0 ? (
+                    <p className="text-xs text-slate-400 italic">No applications</p>
+                  ) : (
+                    cards.map((app) => (
+                      <div
+                        key={app.id}
+                        draggable
+                        onDragStart={() => setDraggingId(app.id)}
+                        onDragEnd={() => setDraggingId(null)}
+                        onClick={() => setDetailApp(app)}
+                        className={cn(
+                          "flex w-40 shrink-0 cursor-grab flex-col gap-0.5 rounded-lg border border-border-subtle bg-surface p-2 shadow-card active:cursor-grabbing",
+                          draggingId === app.id && "opacity-50"
                         )}
-                        {app.ctc && <p>CTC: {app.ctc}</p>}
-                        {app.referral_taken_by && <p>Referral: {app.referral_taken_by}</p>}
-                        {app.hr_contact && <p>HR: {app.hr_contact}</p>}
-                        {app.source_link && (
-                          <a
-                            href={app.source_link}
-                            target="_blank"
-                            rel="noreferrer"
-                            onClick={(e) => e.stopPropagation()}
-                            className="flex items-center gap-0.5 text-primary hover:underline"
-                          >
-                            <ExternalLink className="size-2.5" /> Posting
-                          </a>
-                        )}
-                      </div>
-
-                      <select
-                        value={app.status}
-                        onClick={(e) => e.stopPropagation()}
-                        onChange={(e) =>
-                          handleStatusChange(app.id, e.target.value as JobApplicationStatus)
-                        }
-                        className="mt-2 h-6 w-full rounded-md border border-border-subtle bg-transparent px-1 text-[11px]"
                       >
-                        {COLUMNS.map((c) => (
-                          <option key={c.status} value={c.status}>
-                            {c.label}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  ))}
+                        <div className="flex items-start justify-between gap-1">
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-medium text-foreground">
+                              {app.company}
+                            </p>
+                            <p className="truncate text-xs text-slate-500">{app.role}</p>
+                          </div>
+                          <div className="flex shrink-0 gap-0.5">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                openEditForm(app)
+                              }}
+                              aria-label="Edit application"
+                              className="rounded-full p-1 text-slate-400 transition-colors duration-150 hover:bg-primary-50 hover:text-primary"
+                            >
+                              <Pencil className="size-3" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleDelete(app.id)
+                              }}
+                              aria-label="Delete application"
+                              className="rounded-full p-1 text-slate-400 transition-colors duration-150 hover:bg-danger/10 hover:text-danger"
+                            >
+                              <Trash2 className="size-3" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
             )
@@ -336,6 +432,26 @@ export function KanbanBoard({ refreshToken }: KanbanBoardProps) {
                 onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))}
               />
             </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="category">Category</Label>
+              <Select
+                value={form.category || undefined}
+                onValueChange={(value) => setForm((f) => ({ ...f, category: value ?? "" }))}
+              >
+                <SelectTrigger id="category" className="w-full">
+                  <SelectValue>
+                    {(value: string | null) => value || "Select a category"}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {JOB_CATEGORIES.map((c) => (
+                    <SelectItem key={c} value={c}>
+                      {c}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label htmlFor="date_applied">Date applied</Label>
@@ -347,13 +463,15 @@ export function KanbanBoard({ refreshToken }: KanbanBoardProps) {
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="ctc">CTC</Label>
+                <Label htmlFor="ctc">CTC (LPA)</Label>
                 <Input
                   id="ctc"
                   value={form.ctc}
-                  onChange={(e) => setForm((f) => ({ ...f, ctc: e.target.value }))}
-                  placeholder="e.g. 18 LPA"
+                  onChange={(e) => handleCtcChange(e.target.value)}
+                  placeholder="e.g. 18"
+                  inputMode="numeric"
                 />
+                {ctcError && <p className="text-xs text-danger">{ctcError}</p>}
               </div>
             </div>
             <div className="space-y-1.5">
@@ -427,7 +545,7 @@ export function KanbanBoard({ refreshToken }: KanbanBoardProps) {
               <Button
                 type="submit"
                 size="sm"
-                disabled={saving || !form.company.trim() || !form.role.trim()}
+                disabled={saving || !form.company.trim() || !form.role.trim() || Boolean(ctcError)}
               >
                 {saving ? "Saving…" : form.id ? "Save" : "Add"}
               </Button>

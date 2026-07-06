@@ -12,6 +12,7 @@ from sqlalchemy import (
     ForeignKey,
     Integer,
     Text,
+    UniqueConstraint,
     func,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -221,7 +222,9 @@ class Certification(Base):
     # Cloudinary secure_url of the uploaded certificate image/PDF, if any —
     # only the URL is persisted here, the file itself lives in Cloudinary.
     file_url: Mapped[str | None] = mapped_column(Text, nullable=True)
-    file_type: Mapped[str | None] = mapped_column(Text, nullable=True)  # "image" or "pdf"
+    file_type: Mapped[str | None] = mapped_column(
+        Text, nullable=True
+    )  # "image" or "pdf"
     # Cloudinary's public_id + the resource_type it auto-detected — needed to
     # destroy() the file later (on delete, or when it's replaced by a new
     # upload). Without these, deleting/replacing a cert leaves the old file
@@ -251,6 +254,7 @@ class RevisionItem(Base):
 
 
 class JobApplicationStatus(str, enum.Enum):
+    just_found = "just_found"
     applied = "applied"
     interview = "interview"
     offer = "offer"
@@ -280,6 +284,28 @@ class Resume(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=False)
 
 
+class Notification(Base):
+    """An in-app notification event (task due soon, course deadline,
+    inactivity nudge, etc.) — created by the scheduler alongside (not
+    instead of) an email, so the in-app feed still has a history even for
+    users who haven't opted into email. `source_skill`/`source_id` point
+    back at whatever row triggered it (e.g. the Task), for a future
+    "jump to it" link — nullable since not every notification need have one."""
+
+    __tablename__ = "notifications"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    type: Mapped[str] = mapped_column(Text)
+    title: Mapped[str] = mapped_column(Text)
+    body: Mapped[str] = mapped_column(Text)
+    source_skill: Mapped[str | None] = mapped_column(Text, nullable=True)
+    source_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    read: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
 class JobApplication(Base):
     __tablename__ = "job_applications"
 
@@ -294,8 +320,187 @@ class JobApplication(Base):
         Enum(JobApplicationStatus, name="job_application_status"),
         default=JobApplicationStatus.applied,
     )
+    # Free text (not an enum) so the fixed option list can grow later
+    # without a migration — same precedent as Expense.category.
+    category: Mapped[str | None] = mapped_column(Text, nullable=True)
     hr_contact: Mapped[str | None] = mapped_column(Text, nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
+
+
+class Habit(Base):
+    __tablename__ = "habits"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    title: Mapped[str] = mapped_column(Text)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    last_done: Mapped[date | None] = mapped_column(Date, nullable=True)
+    times_done: Mapped[int] = mapped_column(Integer, default=0)
+    # Highest streak milestone (10/30/50/100 — see app/common/scheduler.py)
+    # already notified for, so a congratulatory notification fires once per
+    # milestone rather than on every subsequent day. Reset to 0 whenever the
+    # streak drops below it, so reaching the same milestone again after a
+    # break notifies again.
+    last_milestone_notified: Mapped[int] = mapped_column(Integer, default=0)
+
+
+class HabitLog(Base):
+    __tablename__ = "habit_logs"
+    __table_args__ = (
+        UniqueConstraint("habit_id", "log_date", name="uq_habit_logs_habit_date"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    habit_id: Mapped[int] = mapped_column(ForeignKey("habits.id"))
+    log_date: Mapped[date] = mapped_column(Date)
+    done: Mapped[bool] = mapped_column(Boolean, default=True)
+
+
+class BillingCycle(str, enum.Enum):
+    weekly = "weekly"
+    monthly = "monthly"
+    yearly = "yearly"
+
+
+class Expense(Base):
+    __tablename__ = "expenses"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    amount: Mapped[float] = mapped_column(Float)
+    category: Mapped[str] = mapped_column(Text)
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    spent_at: Mapped[date] = mapped_column(Date, server_default=func.current_date())
+
+
+class Budget(Base):
+    __tablename__ = "budgets"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    category: Mapped[str] = mapped_column(Text, unique=True)
+    monthly_limit: Mapped[float] = mapped_column(Float)
+
+
+class Subscription(Base):
+    __tablename__ = "subscriptions"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(Text)
+    amount: Mapped[float] = mapped_column(Float)
+    billing_cycle: Mapped[BillingCycle] = mapped_column(
+        Enum(BillingCycle, name="billing_cycle"), default=BillingCycle.monthly
+    )
+    next_charge_at: Mapped[date] = mapped_column(Date)
+
+
+class SavingsGoal(Base):
+    __tablename__ = "savings_goals"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    title: Mapped[str] = mapped_column(Text)
+    target_amount: Mapped[float] = mapped_column(Float)
+    current_amount: Mapped[float] = mapped_column(Float, default=0)
+    target_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+
+
+class SavingsEntry(Base):
+    """A logged, already-completed saving — distinct from SavingsGoal (which
+    tracks progress toward a target amount): this is a simple ledger of
+    "I saved X on this date" entries the user records directly."""
+
+    __tablename__ = "savings_entries"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(Text)
+    amount: Mapped[float] = mapped_column(Float)
+    saved_at: Mapped[date] = mapped_column(Date, server_default=func.current_date())
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+class NewsCategory(str, enum.Enum):
+    ai = "ai"
+    tech = "tech"
+    github = "github"
+    research = "research"
+    startup = "startup"
+    jobs = "jobs"
+
+
+class NewsItem(Base):
+    __tablename__ = "news_items"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    category: Mapped[NewsCategory] = mapped_column(
+        Enum(NewsCategory, name="news_category")
+    )
+    title: Mapped[str] = mapped_column(Text)
+    url: Mapped[str] = mapped_column(Text, unique=True)
+    source: Mapped[str] = mapped_column(Text)
+    summary: Mapped[str] = mapped_column(Text)
+    published_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    fetched_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    # Not part of the original spec's column list, but needed for the "tick
+    # to mark read" / "star to keep" UI features — read has no other
+    # behavioral effect, starred exempts an item from the 3-day retention
+    # cleanup (see app/common/news.py:cleanup_old_news).
+    read: Mapped[bool] = mapped_column(Boolean, default=False)
+    starred: Mapped[bool] = mapped_column(Boolean, default=False)
+
+
+class Note(Base):
+    __tablename__ = "notes"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    title: Mapped[str] = mapped_column(Text)
+    content: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
+class Bookmark(Base):
+    __tablename__ = "bookmarks"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    url: Mapped[str] = mapped_column(Text)
+    title: Mapped[str] = mapped_column(Text)
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
+class Document(Base):
+    __tablename__ = "documents"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    title: Mapped[str] = mapped_column(Text)
+    # Nullable — a link-based document (source_url set, text pasted by the
+    # user instead of an uploaded file) has no stored file of its own.
+    file_path: Mapped[str | None] = mapped_column(Text, nullable=True)
+    source_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    uploaded_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    # Same Cloudinary/R2 cleanup-on-delete metadata as Resume/Certification
+    # (app/api/career.py, app/api/learning.py) — without these, deleting a
+    # PDF-backed document would leave the file orphaned in storage forever.
+    storage_provider: Mapped[str | None] = mapped_column(Text, nullable=True)
+    storage_key: Mapped[str | None] = mapped_column(Text, nullable=True)
+    storage_resource_type: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+class DocumentChunk(Base):
+    __tablename__ = "document_chunks"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    document_id: Mapped[int] = mapped_column(ForeignKey("documents.id"))
+    chunk_text: Mapped[str] = mapped_column(Text)
+    embedding: Mapped[list[float]] = mapped_column(Vector(768))
+    chunk_index: Mapped[int] = mapped_column(Integer)

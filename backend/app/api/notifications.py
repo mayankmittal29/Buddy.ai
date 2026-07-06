@@ -1,8 +1,11 @@
-from fastapi import APIRouter
+from datetime import datetime, timedelta, timezone
+
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
+from sqlalchemy import func, select
 
 from app.core.db import AsyncSessionLocal
-from app.core.models import NotificationPreferences
+from app.core.models import Notification, NotificationPreferences
 
 router = APIRouter()
 
@@ -38,3 +41,67 @@ async def update_notification_preferences(
         await db.commit()
         await db.refresh(prefs)
         return NotificationPreferencesData.model_validate(prefs, from_attributes=True)
+
+
+# ---------------------------------------------------------------------------
+# Notification feed
+# ---------------------------------------------------------------------------
+
+
+class NotificationOut(BaseModel):
+    id: int
+    type: str
+    title: str
+    body: str
+    source_skill: str | None
+    source_id: int | None
+    read: bool
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class NotificationUpdate(BaseModel):
+    read: bool
+
+
+@router.get("/api/notifications", response_model=list[NotificationOut])
+async def list_notifications(days: int | None = None) -> list[Notification]:
+    """All notifications, newest first. Pass ?days=N to only return ones
+    created in the last N days — search and any other filtering happens
+    client-side (same pattern as the Tasks list)."""
+    async with AsyncSessionLocal() as db:
+        stmt = select(Notification).order_by(Notification.created_at.desc())
+        if days is not None:
+            cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+            stmt = stmt.where(Notification.created_at >= cutoff)
+        result = await db.execute(stmt)
+        return list(result.scalars().all())
+
+
+@router.get("/api/notifications/unread-count")
+async def unread_notification_count() -> dict:
+    async with AsyncSessionLocal() as db:
+        stmt = (
+            select(func.count())
+            .select_from(Notification)
+            .where(Notification.read.is_(False))
+        )
+        result = await db.execute(stmt)
+        return {"count": result.scalar_one()}
+
+
+@router.patch("/api/notifications/{notification_id}", response_model=NotificationOut)
+async def update_notification(
+    notification_id: int, data: NotificationUpdate
+) -> Notification:
+    async with AsyncSessionLocal() as db:
+        notification = await db.get(Notification, notification_id)
+        if notification is None:
+            raise HTTPException(
+                status_code=404, detail=f"notification {notification_id} not found"
+            )
+        notification.read = data.read
+        await db.commit()
+        await db.refresh(notification)
+        return notification

@@ -6,3 +6,9 @@ __pycache__/
 .pytest_cache/
 .mypy_cache/
 backend/data/
+# Isolated tool venvs (semgrep, etc.) — deliberately kept out of
+# backend/venv, since installing a tool like semgrep directly into the
+# app's own venv previously downgraded shared dependencies (mcp,
+# opentelemetry, jsonschema) and broke the running backend. Never install
+# security/lint tools into backend/venv directly — use a separate venv.
+.tools/

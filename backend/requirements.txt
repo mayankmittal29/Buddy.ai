@@ -20,3 +20,10 @@ reportlab
 pdfplumber
 python-docx
 boto3
+httpx
+beautifulsoup4
+lxml
+mcp
+pytest
+pytest-asyncio
+defusedxml

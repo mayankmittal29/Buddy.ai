@@ -18,7 +18,9 @@ router = APIRouter()
 
 SUPPORTED_RESUME_EXTENSIONS = ("pdf", "docx")
 
-DOCX_MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+DOCX_MEDIA_TYPE = (
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+)
 
 
 # ---------------------------------------------------------------------------
@@ -66,7 +68,9 @@ async def upload_resume(
     filename = file.filename or "resume"
     ext = filename.lower().rsplit(".", 1)[-1] if "." in filename else ""
     if ext not in SUPPORTED_RESUME_EXTENSIONS:
-        raise HTTPException(status_code=400, detail="Only PDF and DOCX resumes are supported.")
+        raise HTTPException(
+            status_code=400, detail="Only PDF and DOCX resumes are supported."
+        )
 
     contents = await file.read()
 
@@ -79,9 +83,13 @@ async def upload_resume(
     if ext == "pdf" and ensure_r2_configured():
         key = f"resumes/{uuid.uuid4().hex}.pdf"
         try:
-            file_path = await asyncio.to_thread(upload_to_r2, contents, key, "application/pdf")
+            file_path = await asyncio.to_thread(
+                upload_to_r2, contents, key, "application/pdf"
+            )
         except Exception as exc:
-            raise HTTPException(status_code=502, detail=f"Upload failed: {exc}") from exc
+            raise HTTPException(
+                status_code=502, detail=f"Upload failed: {exc}"
+            ) from exc
         storage_provider = "r2"
         storage_key = key
     else:
@@ -104,7 +112,9 @@ async def upload_resume(
                 resource_type=resource_type,
             )
         except Exception as exc:
-            raise HTTPException(status_code=502, detail=f"Upload failed: {exc}") from exc
+            raise HTTPException(
+                status_code=502, detail=f"Upload failed: {exc}"
+            ) from exc
         file_path = result["secure_url"]
         storage_provider = "cloudinary"
         storage_key = result["public_id"]
@@ -158,7 +168,9 @@ async def update_resume(resume_id: int, data: ResumeUpdate) -> Resume:
         updates = data.model_dump(exclude_unset=True)
         if updates.get("is_active") is True:
             # Only one resume can be "active" at a time.
-            await db.execute(update(Resume).where(Resume.id != resume_id).values(is_active=False))
+            await db.execute(
+                update(Resume).where(Resume.id != resume_id).values(is_active=False)
+            )
         for field, value in updates.items():
             setattr(resume, field, value)
         await db.commit()
@@ -205,6 +217,7 @@ class JobApplicationCreate(BaseModel):
     source_link: str | None = None
     referral_taken_by: str | None = None
     status: JobApplicationStatus = JobApplicationStatus.applied
+    category: str | None = None
     hr_contact: str | None = None
     notes: str | None = None
 
@@ -217,6 +230,7 @@ class JobApplicationUpdate(BaseModel):
     source_link: str | None = None
     referral_taken_by: str | None = None
     status: JobApplicationStatus | None = None
+    category: str | None = None
     hr_contact: str | None = None
     notes: str | None = None
 
@@ -230,6 +244,7 @@ class JobApplicationOut(BaseModel):
     source_link: str | None
     referral_taken_by: str | None
     status: JobApplicationStatus
+    category: str | None
     hr_contact: str | None
     notes: str | None
     created_at: datetime
@@ -238,7 +253,9 @@ class JobApplicationOut(BaseModel):
 
 
 @router.get("/api/career/applications", response_model=list[JobApplicationOut])
-async def list_applications(status: JobApplicationStatus | None = None) -> list[JobApplication]:
+async def list_applications(
+    status: JobApplicationStatus | None = None,
+) -> list[JobApplication]:
     async with AsyncSessionLocal() as db:
         stmt = select(JobApplication).order_by(JobApplication.created_at.desc())
         if status is not None:
@@ -247,7 +264,9 @@ async def list_applications(status: JobApplicationStatus | None = None) -> list[
         return list(result.scalars().all())
 
 
-@router.post("/api/career/applications", response_model=JobApplicationOut, status_code=201)
+@router.post(
+    "/api/career/applications", response_model=JobApplicationOut, status_code=201
+)
 async def create_application(data: JobApplicationCreate) -> JobApplication:
     async with AsyncSessionLocal() as db:
         application = JobApplication(**data.model_dump())
@@ -262,7 +281,9 @@ async def update_application(app_id: int, data: JobApplicationUpdate) -> JobAppl
     async with AsyncSessionLocal() as db:
         application = await db.get(JobApplication, app_id)
         if application is None:
-            raise HTTPException(status_code=404, detail=f"application {app_id} not found")
+            raise HTTPException(
+                status_code=404, detail=f"application {app_id} not found"
+            )
         for field, value in data.model_dump(exclude_unset=True).items():
             setattr(application, field, value)
         await db.commit()
@@ -275,7 +296,9 @@ async def delete_application(app_id: int) -> None:
     async with AsyncSessionLocal() as db:
         application = await db.get(JobApplication, app_id)
         if application is None:
-            raise HTTPException(status_code=404, detail=f"application {app_id} not found")
+            raise HTTPException(
+                status_code=404, detail=f"application {app_id} not found"
+            )
         await db.delete(application)
         await db.commit()
 
@@ -295,9 +318,13 @@ async def extract_jd_text(file: UploadFile = File(...)) -> dict:
 
     if content_type == "application/pdf" or filename.endswith(".pdf"):
         text = await asyncio.to_thread(extract_pdf_text, contents)
-    elif content_type.startswith("image/") or filename.endswith((".png", ".jpg", ".jpeg", ".webp")):
+    elif content_type.startswith("image/") or filename.endswith(
+        (".png", ".jpg", ".jpeg", ".webp")
+    ):
         text = await extract_image_text(contents, content_type or "image/png")
     else:
-        raise HTTPException(status_code=400, detail="Unsupported file type — upload a PDF or image.")
+        raise HTTPException(
+            status_code=400, detail="Unsupported file type — upload a PDF or image."
+        )
 
     return {"text": text}

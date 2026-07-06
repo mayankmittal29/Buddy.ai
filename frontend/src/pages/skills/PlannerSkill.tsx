@@ -63,8 +63,12 @@ export default function PlannerSkill() {
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="flex shrink-0 justify-center border-b border-border-subtle bg-canvas px-8 py-3">
-        <div className="flex gap-1.5">
+      <div className="shrink-0 border-b border-border-subtle bg-canvas px-8 py-4">
+        <h1 className="font-script text-4xl font-bold text-primary">Planner</h1>
+        <p className="mt-1 text-muted-foreground">
+          Plan your day, week, and month around what actually matters, with Buddy alongside.
+        </p>
+        <div className="mt-3 flex gap-1.5">
           {MODES.map(({ value, label }) => (
             <button
               key={value}

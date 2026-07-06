@@ -1,0 +1,77 @@
+# Custom, project-specific Semgrep rules (Prompt 11.5.5).
+#
+# Run alongside Semgrep's own registry rule packs — NOT embedded here,
+# since those are resolved by name from Semgrep's registry, not something
+# you inline into a local rules file:
+#
+#   semgrep --config .semgrep.yml --config p/python \
+#           --config p/security-audit --config p/secrets backend/
+#
+# See `make security-scan` / README.md's "Security scanning" section.
+
+rules:
+  - id: sql-raw-string-formatting
+    languages: [python]
+    severity: ERROR
+    message: >
+      Raw f-string or %/`.format()` string interpolation used to build a
+      SQL string passed to execute()/text() — a SQL injection risk. Every
+      query in this codebase should go through SQLAlchemy's parameterized
+      construction (select()/.where()/bindparams()) instead of
+      interpolating values directly into SQL text. If sqlalchemy.text()
+      is genuinely required, bind parameters via .bindparams(), never via
+      string interpolation.
+    metadata:
+      category: security
+      cwe: "CWE-89: Improper Neutralization of Special Elements used in an SQL Command"
+      references:
+        - https://owasp.org/Top10/A03_2021-Injection/
+    patterns:
+      - pattern-either:
+          - pattern: $CONN.execute(f"...")
+          - pattern: $CONN.execute("..." % (...))
+          - pattern: $CONN.execute("...".format(...))
+          - pattern: text(f"...")
+          - pattern: text("..." % (...))
+          - pattern: text("...".format(...))
+
+  - id: dangerous-eval-exec-pickle
+    languages: [python]
+    severity: ERROR
+    message: >
+      eval()/exec()/pickle.loads()/pickle.load() can execute arbitrary
+      code if the input originates from user input, an uploaded file, or
+      an external API/network response (exactly the shape of data News
+      and Knowledge Base ingest, see docs/guardrails/news.SKILL.md and
+      knowledge-base.SKILL.md). Avoid these entirely on any data that
+      isn't fully internally-generated and trusted; parse
+      JSON/YAML/structured data with json.loads()/yaml.safe_load()
+      instead.
+    metadata:
+      category: security
+      cwe: "CWE-94: Improper Control of Generation of Code"
+      references:
+        - https://owasp.org/Top10/A08_2021-Software_and_Data_Integrity_Failures/
+    patterns:
+      - pattern-either:
+          - pattern: eval(...)
+          - pattern: exec(...)
+          - pattern: pickle.loads(...)
+          - pattern: pickle.load(...)
+
+  - id: hardcoded-secret-pattern
+    languages: [generic]
+    severity: ERROR
+    message: >
+      Possible hardcoded credential literal (matches a known API-key/token
+      prefix shape). Every credential in this project is loaded via
+      app.core.config.Settings (env vars / .env, see .env.example) —
+      never hardcode a real key/token inline in source.
+    metadata:
+      category: security
+      cwe: "CWE-798: Use of Hard-coded Credentials"
+    paths:
+      exclude:
+        - "*.md"
+        - ".env.example"
+    pattern-regex: '(sk-[A-Za-z0-9]{20,}|AIza[A-Za-z0-9_\-]{30,}|ghp_[A-Za-z0-9]{30,}|xox[baprs]-[A-Za-z0-9\-]{10,})'

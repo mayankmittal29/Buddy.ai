@@ -10,15 +10,15 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
+    # Chat models are resolved per-skill through a tiered, multi-provider
+    # fallback router (see app/core/model_tiers.py / model_router.py) rather
+    # than one hardcoded model — these three keys back that router's Groq/
+    # Gemini/Hugging-Face-Inference-Providers steps. Embeddings
+    # (app/common/memory.py) always use Gemini specifically, regardless of
+    # which provider ends up serving a given skill's chat model.
     gemini_api_key: str = ""
-
-    # Which LLM backs the chat agent. "gemini" (default) or "groq" (or any
-    # other litellm-supported provider — see app/core/agent.py). Embeddings
-    # (app/common/memory.py) always use Gemini regardless of this setting,
-    # since Groq doesn't offer an embeddings API.
-    llm_provider: str = "gemini"
-    llm_model: str = ""  # blank = provider's default (see agent.py)
     groq_api_key: str = ""
+    hf_token: str = ""
 
     database_url: str = "postgresql+asyncpg://buddy:buddy@localhost:5432/buddy"
 

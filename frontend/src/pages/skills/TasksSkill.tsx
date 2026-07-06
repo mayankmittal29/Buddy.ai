@@ -41,50 +41,60 @@ export default function TasksSkill() {
   }
 
   return (
-    <Workspace>
-      <WorkspaceLeftPanel className="w-96">
-        <TaskPanel refreshToken={taskRefreshToken} />
-      </WorkspaceLeftPanel>
-      <WorkspaceCenterPanel className="relative">
-        <button
-          type="button"
-          onClick={() => setRightPanelOpen((open) => !open)}
-          aria-label={
-            rightPanelOpen ? "Collapse conversations panel" : "Expand conversations panel"
-          }
-          className="absolute top-6 right-6 z-10 flex size-8 items-center justify-center rounded-full border border-border-subtle bg-surface text-slate-500 shadow-card transition-colors duration-150 hover:text-primary"
-        >
-          {rightPanelOpen ? (
-            <PanelRightClose className="size-4" />
-          ) : (
-            <PanelRightOpen className="size-4" />
-          )}
-        </button>
-        <ChatPanel
-          skillId={SKILL_ID}
-          conversationId={conversationId}
-          onConversationIdChange={handleConversationIdChange}
-          onTurnComplete={handleTurnComplete}
-        />
-      </WorkspaceCenterPanel>
-      <WorkspaceRightPanel
-        className={cn(
-          "overflow-hidden transition-all duration-300 ease-out",
-          rightPanelOpen ? "w-80" : "w-0 border-l-0 px-0 py-0"
-        )}
-      >
-        {/* Fixed to the panel's open-state content-box width (w-80 minus
-            pageShell's px-8 padding on both sides) so content doesn't
-            squish/reflow while the outer panel's width animates. */}
-        <div className="w-64">
-          <ConversationsPanel
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="shrink-0 border-b border-border-subtle bg-canvas px-8 py-4">
+        <h1 className="font-script text-4xl font-bold text-primary">Tasks</h1>
+        <p className="mt-1 text-muted-foreground">
+          Track to-dos, set priorities and due dates, and chat with Buddy to stay on top of
+          them.
+        </p>
+      </div>
+
+      <Workspace>
+        <WorkspaceLeftPanel className="w-96">
+          <TaskPanel refreshToken={taskRefreshToken} />
+        </WorkspaceLeftPanel>
+        <WorkspaceCenterPanel className="relative">
+          <button
+            type="button"
+            onClick={() => setRightPanelOpen((open) => !open)}
+            aria-label={
+              rightPanelOpen ? "Collapse conversations panel" : "Expand conversations panel"
+            }
+            className="absolute top-6 right-6 z-10 flex size-8 items-center justify-center rounded-full border border-border-subtle bg-surface text-slate-500 shadow-card transition-colors duration-150 hover:text-primary"
+          >
+            {rightPanelOpen ? (
+              <PanelRightClose className="size-4" />
+            ) : (
+              <PanelRightOpen className="size-4" />
+            )}
+          </button>
+          <ChatPanel
             skillId={SKILL_ID}
-            activeConversationId={conversationId}
-            onSelect={handleConversationIdChange}
-            refreshToken={refreshToken}
+            conversationId={conversationId}
+            onConversationIdChange={handleConversationIdChange}
+            onTurnComplete={handleTurnComplete}
           />
-        </div>
-      </WorkspaceRightPanel>
-    </Workspace>
+        </WorkspaceCenterPanel>
+        <WorkspaceRightPanel
+          className={cn(
+            "overflow-hidden transition-all duration-300 ease-out",
+            rightPanelOpen ? "w-80" : "w-0 border-l-0 px-0 py-0"
+          )}
+        >
+          {/* Fixed to the panel's open-state content-box width (w-80 minus
+              pageShell's px-8 padding on both sides) so content doesn't
+              squish/reflow while the outer panel's width animates. */}
+          <div className="w-64">
+            <ConversationsPanel
+              skillId={SKILL_ID}
+              activeConversationId={conversationId}
+              onSelect={handleConversationIdChange}
+              refreshToken={refreshToken}
+            />
+          </div>
+        </WorkspaceRightPanel>
+      </Workspace>
+    </div>
   )
 }

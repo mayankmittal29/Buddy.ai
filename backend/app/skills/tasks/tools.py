@@ -3,10 +3,9 @@ from datetime import datetime
 from datetime import timezone as dt_timezone
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from sqlalchemy import select
-
 from app.core.db import AsyncSessionLocal
 from app.core.models import Task, TaskPriority, TaskStatus, UserProfile
+from sqlalchemy import select
 
 # Matches just the naive "YYYY-MM-DDTHH:MM[:SS]" portion of a datetime string,
 # discarding any trailing offset/"Z".
@@ -143,7 +142,9 @@ async def list_tasks(
         try:
             status_enum = TaskStatus(status)
         except ValueError:
-            return {"error": f"invalid status '{status}'. Must be one of: pending, done."}
+            return {
+                "error": f"invalid status '{status}'. Must be one of: pending, done."
+            }
 
     priority_enum = None
     if priority is not None:

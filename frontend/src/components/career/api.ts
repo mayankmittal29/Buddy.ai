@@ -1,11 +1,28 @@
 const API_URL = import.meta.env.VITE_API_URL
 
 export type JobApplicationStatus =
+  | "just_found"
   | "applied"
   | "interview"
   | "offer"
   | "rejected"
   | "withdrawn"
+
+export const JOB_CATEGORIES = [
+  "Full Stack",
+  "AI",
+  "ML",
+  "DevOps",
+  "IT",
+  "Testing",
+  "Product",
+  "Researcher",
+  "Backend",
+  "Frontend UI/UX",
+  "Other",
+] as const
+
+export type JobCategory = (typeof JOB_CATEGORIES)[number]
 
 export interface Resume {
   id: number
@@ -25,6 +42,7 @@ export interface JobApplication {
   source_link: string | null
   referral_taken_by: string | null
   status: JobApplicationStatus
+  category: string | null
   hr_contact: string | null
   notes: string | null
   created_at: string
@@ -96,6 +114,7 @@ export async function createApplication(input: {
   source_link?: string | null
   referral_taken_by?: string | null
   status?: JobApplicationStatus
+  category?: string | null
   hr_contact?: string | null
   notes?: string | null
 }): Promise<JobApplication> {

@@ -147,7 +147,9 @@ class CertificationOut(BaseModel):
 
 
 @router.get("/api/learning/certifications", response_model=list[CertificationOut])
-async def list_certifications(status: CertificationStatus | None = None) -> list[Certification]:
+async def list_certifications(
+    status: CertificationStatus | None = None,
+) -> list[Certification]:
     async with AsyncSessionLocal() as db:
         stmt = select(Certification).order_by(Certification.created_at.asc())
         if status is not None:
@@ -156,7 +158,9 @@ async def list_certifications(status: CertificationStatus | None = None) -> list
         return list(result.scalars().all())
 
 
-@router.post("/api/learning/certifications", response_model=CertificationOut, status_code=201)
+@router.post(
+    "/api/learning/certifications", response_model=CertificationOut, status_code=201
+)
 async def create_certification(data: CertificationCreate) -> Certification:
     async with AsyncSessionLocal() as db:
         cert = Certification(**data.model_dump())
@@ -167,11 +171,15 @@ async def create_certification(data: CertificationCreate) -> Certification:
 
 
 @router.patch("/api/learning/certifications/{cert_id}", response_model=CertificationOut)
-async def update_certification(cert_id: int, data: CertificationUpdate) -> Certification:
+async def update_certification(
+    cert_id: int, data: CertificationUpdate
+) -> Certification:
     async with AsyncSessionLocal() as db:
         cert = await db.get(Certification, cert_id)
         if cert is None:
-            raise HTTPException(status_code=404, detail=f"certification {cert_id} not found")
+            raise HTTPException(
+                status_code=404, detail=f"certification {cert_id} not found"
+            )
         updates = data.model_dump(exclude_unset=True)
         for field, value in updates.items():
             setattr(cert, field, value)
@@ -187,7 +195,9 @@ async def delete_certification(cert_id: int) -> None:
     async with AsyncSessionLocal() as db:
         cert = await db.get(Certification, cert_id)
         if cert is None:
-            raise HTTPException(status_code=404, detail=f"certification {cert_id} not found")
+            raise HTTPException(
+                status_code=404, detail=f"certification {cert_id} not found"
+            )
 
         if cert.storage_key:
             try:
@@ -205,8 +215,12 @@ async def delete_certification(cert_id: int) -> None:
         await db.commit()
 
 
-@router.post("/api/learning/certifications/{cert_id}/file", response_model=CertificationOut)
-async def upload_certification_file(cert_id: int, file: UploadFile = File(...)) -> Certification:
+@router.post(
+    "/api/learning/certifications/{cert_id}/file", response_model=CertificationOut
+)
+async def upload_certification_file(
+    cert_id: int, file: UploadFile = File(...)
+) -> Certification:
     """Upload a certificate image/PDF to Cloudinary and store its URL.
 
     Only the resulting secure_url (and a coarse "image"/"pdf" type, for the
@@ -222,12 +236,16 @@ async def upload_certification_file(cert_id: int, file: UploadFile = File(...)) 
     async with AsyncSessionLocal() as db:
         cert = await db.get(Certification, cert_id)
         if cert is None:
-            raise HTTPException(status_code=404, detail=f"certification {cert_id} not found")
+            raise HTTPException(
+                status_code=404, detail=f"certification {cert_id} not found"
+            )
         old_storage_key = cert.storage_key
         old_storage_resource_type = cert.storage_resource_type
 
     content_type = file.content_type or ""
-    is_pdf = content_type == "application/pdf" or (file.filename or "").lower().endswith(".pdf")
+    is_pdf = content_type == "application/pdf" or (
+        file.filename or ""
+    ).lower().endswith(".pdf")
     file_type = "pdf" if is_pdf else "image"
 
     contents = await file.read()
@@ -260,7 +278,9 @@ async def upload_certification_file(cert_id: int, file: UploadFile = File(...)) 
     async with AsyncSessionLocal() as db:
         cert = await db.get(Certification, cert_id)
         if cert is None:
-            raise HTTPException(status_code=404, detail=f"certification {cert_id} not found")
+            raise HTTPException(
+                status_code=404, detail=f"certification {cert_id} not found"
+            )
         cert.file_url = file_url
         cert.file_type = file_type
         cert.storage_key = storage_key
@@ -314,7 +334,9 @@ async def list_revision_items(due: str | None = None) -> list[RevisionItem]:
         return list(result.scalars().all())
 
 
-@router.post("/api/learning/revision-items", response_model=RevisionItemOut, status_code=201)
+@router.post(
+    "/api/learning/revision-items", response_model=RevisionItemOut, status_code=201
+)
 async def create_revision_item(data: RevisionItemCreate) -> RevisionItem:
     async with AsyncSessionLocal() as db:
         item = RevisionItem(
@@ -334,7 +356,9 @@ async def update_revision_item(item_id: int, data: RevisionItemUpdate) -> Revisi
     async with AsyncSessionLocal() as db:
         item = await db.get(RevisionItem, item_id)
         if item is None:
-            raise HTTPException(status_code=404, detail=f"revision item {item_id} not found")
+            raise HTTPException(
+                status_code=404, detail=f"revision item {item_id} not found"
+            )
         for field, value in data.model_dump(exclude_unset=True).items():
             setattr(item, field, value)
         await db.commit()
@@ -342,14 +366,19 @@ async def update_revision_item(item_id: int, data: RevisionItemUpdate) -> Revisi
         return item
 
 
-@router.post("/api/learning/revision-items/{item_id}/mark-revised", response_model=RevisionItemOut)
+@router.post(
+    "/api/learning/revision-items/{item_id}/mark-revised",
+    response_model=RevisionItemOut,
+)
 async def mark_revision_item_revised(item_id: int) -> RevisionItem:
     """Mark a topic as revised: doubles the interval and pushes next_review_at
     forward by that new interval (simple spaced-repetition — not full SM-2)."""
     async with AsyncSessionLocal() as db:
         item = await db.get(RevisionItem, item_id)
         if item is None:
-            raise HTTPException(status_code=404, detail=f"revision item {item_id} not found")
+            raise HTTPException(
+                status_code=404, detail=f"revision item {item_id} not found"
+            )
         item.interval_days = max(1, item.interval_days * 2)
         item.next_review_at = date.today() + timedelta(days=item.interval_days)
         await db.commit()
@@ -362,6 +391,8 @@ async def delete_revision_item(item_id: int) -> None:
     async with AsyncSessionLocal() as db:
         item = await db.get(RevisionItem, item_id)
         if item is None:
-            raise HTTPException(status_code=404, detail=f"revision item {item_id} not found")
+            raise HTTPException(
+                status_code=404, detail=f"revision item {item_id} not found"
+            )
         await db.delete(item)
         await db.commit()

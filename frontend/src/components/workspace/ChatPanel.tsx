@@ -43,6 +43,22 @@ function conversationStorageKey(skillId: string) {
   return `buddy:conversation:${skillId}`
 }
 
+/** Some skills (e.g. knowledge_base's answer_from_documents) end a reply
+ * with a trailing "Sources: Title One, Title Two" line by convention (see
+ * their SKILL.md) — split that off so it can render as small reference
+ * chips instead of plain trailing text. A no-op for every other skill's
+ * replies, which never produce this exact line. */
+function extractSources(content: string): { text: string; sources: string[] } {
+  const match = content.match(/\n?Sources:\s*(.+?)\s*$/i)
+  if (!match) return { text: content, sources: [] }
+  const sources = match[1]
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean)
+  if (sources.length === 0) return { text: content, sources: [] }
+  return { text: content.slice(0, match.index).trimEnd(), sources }
+}
+
 function TypingIndicator() {
   return (
     <div className="flex items-center gap-1 px-1 py-1">
@@ -312,44 +328,59 @@ export function ChatPanel({
     <div className="flex h-full min-h-0 flex-col">
       <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto p-4">
         {messages.length === 0 && <BuddyGreeting />}
-        {messages.map((m) => (
-          <div
-            key={m.id}
-            className={cn(
-              "flex items-end gap-2",
-              m.role === "user" ? "justify-end" : "justify-start"
-            )}
-          >
-            {m.role === "assistant" && <AssistantAvatar />}
+        {messages.map((m) => {
+          const { text, sources } = m.role === "assistant" ? extractSources(m.content) : { text: m.content, sources: [] }
+          return (
             <div
+              key={m.id}
               className={cn(
-                "flex max-w-[75%] flex-col gap-1",
-                m.role === "user" ? "items-end" : "items-start"
+                "flex items-end gap-2",
+                m.role === "user" ? "justify-end" : "justify-start"
               )}
             >
+              {m.role === "assistant" && <AssistantAvatar />}
               <div
                 className={cn(
-                  "rounded-2xl px-4 py-2 text-sm whitespace-pre-wrap shadow-card",
-                  m.role === "user"
-                    ? "rounded-br-md bg-gradient-to-br from-primary to-accent text-white"
-                    : "rounded-bl-md border border-border-subtle bg-surface text-foreground"
+                  "flex max-w-[75%] flex-col gap-1",
+                  m.role === "user" ? "items-end" : "items-start"
                 )}
               >
-                {m.content ? (
-                  m.content
-                ) : m.role === "assistant" && isStreaming ? (
-                  <TypingIndicator />
-                ) : null}
+                <div
+                  className={cn(
+                    "rounded-2xl px-4 py-2 text-sm whitespace-pre-wrap shadow-card",
+                    m.role === "user"
+                      ? "rounded-br-md bg-gradient-to-br from-primary to-accent text-white"
+                      : "rounded-bl-md border border-border-subtle bg-surface text-foreground"
+                  )}
+                >
+                  {text ? (
+                    text
+                  ) : m.role === "assistant" && isStreaming ? (
+                    <TypingIndicator />
+                  ) : null}
+                </div>
+                {sources.length > 0 && (
+                  <div className="flex flex-wrap gap-1 px-1">
+                    {sources.map((source) => (
+                      <span
+                        key={source}
+                        className="rounded-full bg-primary-50 px-2 py-0.5 text-[11px] font-medium text-primary"
+                      >
+                        {source}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {m.content && (
+                  <span className="px-1 text-[11px] text-muted-foreground">
+                    {formatMessageTime(m.createdAt)}
+                  </span>
+                )}
               </div>
-              {m.content && (
-                <span className="px-1 text-[11px] text-muted-foreground">
-                  {formatMessageTime(m.createdAt)}
-                </span>
-              )}
+              {m.role === "user" && <UserAvatar className="size-8" />}
             </div>
-            {m.role === "user" && <UserAvatar className="size-8" />}
-          </div>
-        ))}
+          )
+        })}
       </div>
 
       <div className="border-t border-border-subtle p-4">

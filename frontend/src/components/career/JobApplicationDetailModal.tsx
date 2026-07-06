@@ -13,11 +13,21 @@ import { cn } from "@/lib/utils"
 import type { JobApplication, JobApplicationStatus } from "@/components/career/api"
 
 const STATUS_BADGE: Record<JobApplicationStatus, string> = {
+  just_found: "bg-purple-50 text-purple-700",
   applied: "bg-blue-50 text-blue-700",
   interview: "bg-amber-50 text-amber-700",
   offer: "bg-emerald-50 text-emerald-700",
   rejected: "bg-rose-50 text-rose-700",
   withdrawn: "bg-slate-100 text-slate-600",
+}
+
+const STATUS_LABEL: Record<JobApplicationStatus, string> = {
+  just_found: "Just Found",
+  applied: "Applied",
+  interview: "Interview",
+  offer: "Offer",
+  rejected: "Rejected",
+  withdrawn: "Withdrawn",
 }
 
 interface JobApplicationDetailModalProps {
@@ -84,8 +94,13 @@ export function JobApplicationDetailModal({
                 STATUS_BADGE[application.status]
               )}
             >
-              {application.status}
+              {STATUS_LABEL[application.status]}
             </span>
+            {application.category && (
+              <span className="rounded-full bg-primary-50 px-2.5 py-0.5 text-xs font-medium text-primary">
+                {application.category}
+              </span>
+            )}
           </div>
 
           {dateLabel && (

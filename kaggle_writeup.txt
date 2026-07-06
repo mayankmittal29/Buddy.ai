@@ -1,0 +1,150 @@
+# **Overview**
+
+Buddy is an AI-powered personal concierge designed to demonstrate how the concepts from the AI Engineering Intensive can be integrated into a single, production-oriented application rather than isolated demonstrations. Built around a single **Google ADK** root agent, Buddy provides nine modular skills—Planner, Tasks, News, Career, Learning, Finance, Habits, Knowledge Base, and Analytics—using **progressive disclosure** to load only the active skill's tools and instructions, improving efficiency and reducing context overhead.
+
+The project follows **Spec-Driven Development**, with every feature defined through technical and UI specifications before implementation. External capabilities are standardized through the **Model Context Protocol (MCP)**, enabling consistent integration with Finance tools and external knowledge sources such as arXiv, GitHub, and Hacker News.
+
+Buddy combines **short-term conversational context** with **long-term semantic memory** stored in PostgreSQL using **pgvector**, allowing personalized, cross-session recall. To ensure safety, every real-world action requires explicit human confirmation and is protected by guardrails including **PII redaction**, **prompt injection defenses**, **Semgrep-based static analysis**, secret scanning, and tool-call interception. Finally, **Evaluation-Driven Development (EDD)** validates both response quality and tool-call correctness, while a multi-provider routing layer across Gemini, Groq, and Hugging Face maintains reliability through automatic fallback during rate limits or provider failures.
+
+# **Problem Statement**
+
+A single ordinary day already produces nine separate small decisions: what's planned, what's due, what's worth reading, what's been applied for, what needs revising, what was spent, what habit was kept, what note was saved, and whether any of it added up to real progress. No single missed item is the real problem — the real cost is the constant background effort of checking nine different places just to stay on top of a normal day. That is a workload built almost entirely from repetition and remembering, which is exactly the shape of problem a conversational agent can absorb, provided it can be trusted with real actions and not just conversation.
+
+# **Objective**
+
+Build one conversational agent capable of safely handling the tracking, reminding, and light decision-making across planning, tasks, news, career, learning, finance, habits, notes, and self-analytics, and use that build as a concrete, end-to-end demonstration of the architecture and safety practices taught across the **5-day AI engineering program**, rather than treating each as a separate exercise. The project also aims to demonstrate how modern agentic AI systems can be engineered with production-oriented software engineering practices rather than prompt engineering alone.
+
+# **Stakeholders**
+
+The primary stakeholders include:
+
+- **Students**, who need help organizing coursework, assignments, internships, exam preparation, research, and daily academic planning.
+- **Professionals**, who manage meetings, deadlines, recurring tasks, expenses, and productivity across personal and professional responsibilities.
+- **Researchers**, who regularly track research papers, technical blogs, GitHub repositories, and organize notes into a searchable long-term knowledge base.
+- **Lifelong Learners**, who follow structured learning roadmaps, maintain revision schedules, and continuously acquire new technical and professional skills.
+- **Job Seekers and Unemployed Individuals**, who manage resume versions, track job applications, monitor interview pipelines, identify skill gaps, and stay organized throughout their job search.
+Beyond the primary users, the project also serves:
+- **Capstone Evaluators**, assessing how effectively the architectural, engineering, and safety concepts taught throughout the AI Engineering Intensive have been translated into a practical, production-oriented system.
+- **Future Contributors and Developers**, who rely on each skill's `SKILL.md`, technical specifications, architecture documentation, and guardrail policies as the engineering contract for extending and maintaining the platform.
+
+# **Why One Agent With Nine Skills, Instead of Nine Separate Agents**
+
+Buddy could have been built as nine independent agents stitched together by an orchestrator. That design was deliberately rejected:
+
+- Memory needs to be shared, not passed around. A fact learned while using Finance ("my rent budget is 1200") is just as useful later under Planner or Analytics. One root agent with one long-term memory store gets that for free through a single recall call; nine separate agents would need their own inter-agent messaging protocol just to keep facts in sync — solving a coordination problem the product doesn't actually have.
+- **Progressive Disclosure** already delivers the isolation that splitting into nine agents is normally used to achieve. Multi-agent designs often exist to keep each agent's context clean and its behavior scoped to one job. Buddy gets that same isolation by loading only the active skill's tools and prompt into a single agent, with none of the added latency of a manager agent deciding which specialist should handle a turn.
+- The nine domains don't coordinate with each other in real time. Finance never needs to negotiate with Planner mid-task, and Habits never needs to ask News for anything — the domains run in parallel, not collaboratively. Agent-to-Agent orchestration earns its cost when agents genuinely need to hand off or negotiate complex sub-tasks; here they don't, so building for that would be solving a problem this product does not have.
+- One agent means one place to enforce safety. Every guardrail in this build — the tool allow-list, the human-confirmation gate, **injection neutralization, PII redaction** — is wired once onto the root agent and automatically inherited by every skill's cloned instance. Nine independent agents would mean nine places for that wiring to drift out of sync, or a second orchestration-level trust boundary to secure on top of the agents themselves.
+- Cost and latency compound with every extra agent. A multi-agent design typically adds at least one more model call per turn purely for routing or hand-off. Running across stacked free-tier quotas on Gemini, Groq, and Hugging Face, that extra call is a real cost, not a rounding error — a single agent choosing from an already-loaded, already-scoped tool set skips that hop entirely.
+
+The result is nine skills that behave like nine specialists, without paying for nine agents' worth of coordination overhead.
+
+# **Phases**
+
+1. Backend and agent foundation — FastAPI, PostgreSQL with pgvector, the ADK root agent, and the session/runner plumbing.
+2. The nine skills, built one at a time, each isolated under its own module with its own tools and SKILL.md contract.
+3. Two-tier memory — session state plus long-term semantic recall.
+4. MCP standardization — a dedicated buddy-mcp server for Finance, and MCP-style wrapping for external content sources.
+5. Multi-provider resilience — a tiered, fallback-aware model router.
+6. Frontend build, developed against its own parallel design specification.
+7. Human-in-the-loop confirmation gates on every consequential action.
+8. Scheduled notifications — reminders, deadlines, milestones, and the daily digest, gated on channel opt-in.
+9. Analytics as the one sanctioned cross-skill, read-only reporting layer.
+10. Evaluation-Driven Development — golden per-skill test sets replayed against the live agent.
+11. Guardrails and governance — security specs, PII redaction, injection defenses, static analysis, tool-call interception, and threat modeling.
+12. Hardening — dependency isolation, a consolidated test suite, and a full documentation pass.
+
+# **Key Features**
+
+- Smart Planner — turns a stated list of tasks into an actual time-blocked schedule around fixed routine anchors, removing the manual effort of deciding when everything happens.
+- Task and Reminder Management — adds real priority and scheduled nudges on top of plain reminders, so a phone's flat alarm list doesn't quietly bury the important item.
+- Personalized AI News — pulls arXiv, GitHub trending, and Hacker News into one categorized daily digest, replacing the routine of checking several sites separately.
+- Career Hub — tracks resume versions and every job application's status in one place, so nothing gets lost across many simultaneous applications.
+- Learning Hub — orders an unstructured course backlog into a roadmap and adds spaced revision nudges that would otherwise be skipped entirely.
+- Finance and Expense Tracker — makes logging an expense as easy as mentioning it in conversation, giving budget awareness before the money is already gone rather than after.
+- Habits — turns consistency into something visible through streaks and milestones, providing the feedback loop that keeps a habit going.
+- Personal Knowledge Base — one semantic-search store for notes and documents, so anything saved can be found later by meaning instead of an exact remembered title.
+- Analytics Dashboard — rolls up data from every other skill into one objective view of the week, instead of relying on how productive it felt.
+
+# **Technology Stack & Infrastructure**
+
+Buddy follows a modular, production-oriented architecture built around Google ADK, FastAPI, and PostgreSQL, with standardized tool integration through MCP and a resilient multi-provider LLM routing layer.
+
+- **Frontend:** React 19, Vite 6, TypeScript, Tailwind CSS v4, shadcn/ui, Base UI, React Router, and Recharts for a responsive, modern user interface and interactive analytics dashboard.
+
+- **Backend:** FastAPI, Google Agent Development Kit (ADK), SQLAlchemy (Async), Alembic, APScheduler, LiteLLM, and Pydantic for scalable APIs, agent orchestration, scheduling, and configuration management.
+
+- **Databases & Memory:** PostgreSQL serves as the primary transactional database as well as the long-term semantic memory store using pgvector for embedding-based retrieval across all skills. Session state is maintained separately for short-term conversational context.
+
+- **Storage:** Cloudinary and Cloudflare R2 are used for storing user-uploaded assets such as profile images, resumes, documents, certifications and generated reports, while PostgreSQL stores only file metadata and references.
+
+- **Agent Tooling:** A dedicated `buddy-mcp` server exposes Finance tools through the Model Context Protocol (MCP), while external services such as arXiv, GitHub Trending, and Hacker News are integrated through standardized MCP-style wrappers.
+
+- **Model Providers:** Gemini, Groq, and Hugging Face Inference Providers are organized into workload-specific tiers with automatic fallback to maintain availability during provider outages or free-tier rate limits.
+
+- **Document Processing & Knowledge Ingestion:** pdfplumber, python-docx, ReportLab, and DefusedXML enable secure document ingestion, parsing, report generation, and knowledge extraction for the RAG pipeline.
+
+- **Security & Code Quality:** Semgrep with custom security rules, pre-commit hooks, detect-secrets, Ruff, and Black are executed from an isolated tooling environment to enforce secure development practices without affecting application dependencies.
+
+- **Evaluation & Observability:** LangSmith provides execution tracing and observability, while a pytest-based Evaluation-Driven Development (EDD) framework replays per-skill golden test cases to validate tool-call trajectories, workflow correctness, and response quality.
+
+# **Workflow / User Journey**
+
+1. The user opens Buddy and selects one of the nine skills; the frontend sets the active skill for that conversation.
+2. The backend loads a dedicated agent clone for that skill, so only its tools and prompt addition are in context.
+3. The user talks naturally — adding a task, asking about this month's spend, requesting today's news summary — and the agent calls the relevant tool directly.
+4. Every tool call passes through a hooks layer before and after execution: an allow-list check against the active skill, a human-in-the-loop gate for destructive actions, injection neutralization of arguments, and PII redaction of the response, all logged as structured trace metadata.
+5. Durable facts the user mentions are written to long-term memory, redacted of PII first, and become recallable from any other skill in a later session.
+6. In the background, a scheduler independently checks for due tasks, approaching deadlines, inactive learning items, and habit milestones, and generates the daily news digest — surfaced in-app always, and by email only if the user opted in through settings.
+7. The user can ask Analytics at any time for a cross-skill report to see whether the week's actual activity matched the plan.
+
+# **Engineering Decisions**
+
+Several architectural decisions were made to prioritize modularity, scalability, and maintainability over short-term implementation convenience.
+
+- **Google ADK over custom orchestration/LangGraph:** Chosen for its native support for modular agent skills, tool integration, and production-oriented agent workflows.
+
+- **PostgreSQL over MongoDB:** Selected for strong transactional guarantees, relational data modeling, and native support for vector search through pgvector.
+
+- **pgvector over Managed Vector Databases:** Keeping embeddings alongside application data simplified deployment, reduced infrastructure overhead, and maintained consistency within a single database.
+
+- **MCP over Custom API Integrations:** The Model Context Protocol provides a standardized interface for external tools, making new integrations easier to develop and maintain.
+
+- **Cloudinary / Cloudflare R2 over Database File Storage:** Large files are stored in object storage while PostgreSQL maintains only metadata and references, improving scalability and database performance.
+
+- **FastAPI over Traditional Web Frameworks:** Chosen for asynchronous request handling, high performance, automatic API documentation, and seamless integration with modern AI services.
+
+- **Multiple LLM Providers over a Single Model:** Gemini, Groq, and Hugging Face are combined through workload-specific routing and automatic fallback to improve reliability and reduce dependence on any single provider.
+
+- **Long-Term Memory in PostgreSQL:** Semantic embeddings and structured user data are stored together, enabling persistent memory without introducing a separate memory service.
+
+# **Challenges Faced**
+
+- Free-tier rate limits on Gemini and inconsistent function-calling support on some Groq models meant a single hardcoded model was never viable; the router had to handle both pre-response failures and the harder case of a provider failing mid-stream.
+- Writing security specifications is easy; making them real was harder. The allow-list, human-confirmation gate, injection defenses, and PII scanner all had to become enforced code, not just prompt-level conventions the model could choose to ignore.
+- Installing security tooling directly into the backend's own environment once downgraded shared dependencies and took the running application down; the fix was a fully separate tooling environment kept out of the app's own dependency graph.
+- News, Knowledge Base, and Career all ingest externally sourced text that later becomes agent context, so keeping that content treated as data rather than instructions required both a code-level sanitizer and a repeated, explicit system-prompt rule across every skill.
+- Every round of live verification ran against the real database and real model providers, which meant carefully cleaning up test artifacts afterward so they never got mistaken for genuine user data.
+
+# **Current Status &Future Work**
+
+Buddy is functionally complete as a locally running, end-to-end AI personal assistant. The following enhancements are yet to add:
+
+- **Authentication & User Management:** Integrate Firebase Authentication or Clerk to support secure login/signup and scope all data, memory, and uploaded assets to individual `user_id`s and JWT plus cookies.
+- **Caching Layer:** Introduce Redis to cache frequently accessed resources such as personalized news digests, analytics summaries, and semantic retrieval results, reducing latency and external API usage.
+- **Scalable Background Processing:** Replace APScheduler with Celery or Temporal to provide reliable, distributed execution of reminders, scheduled digests, notifications, and other long-running background jobs.
+- **Push Notifications:** Add Firebase Cloud Messaging (FCM) to complement email notifications with real-time mobile and web push alerts.
+- **Production Deployment:** Containerize the frontend and backend using Docker and deploy to a cloud platform such as Google Cloud Run, Railway, or Render with automated CI/CD pipelines.
+- **Additional Notification Channels:** Extend the notification system with WhatsApp integration (via a personal-use bridge) while keeping email as the primary, reliable notification channel.
+- **Expanded MCP Ecosystem:** Introduce additional MCP servers and tools to support richer integrations with calendars, productivity suites, financial services, and third-party knowledge sources.
+
+# **Limitations**
+
+- No Agent-to-Agent orchestration — Buddy is deliberately one root agent with skill-scoped tool sets, not a multi-agent system.
+- The PII scanner is regex and rules-based by design, specifically to avoid ever sending personal text to an external service for detection, so it catches common PII formats rather than every conceivable one.
+- Response quality and latency vary turn to turn, since they depend on whichever provider in the fallback chain actually serves a given request.
+- Email is the only outbound notification channel implemented currently.
+
+# **Conclusion**
+
+Buddy integrates the core concepts of modern AI engineering into a single production-oriented system: modular skills, progressive disclosure, MCP-based tool integration, long-term semantic memory, multi-provider resilience, and security enforced through guardrails and evaluation. The nine skills are the product; the underlying architecture is the capstone.

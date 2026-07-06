@@ -1,13 +1,5 @@
 import { useEffect, useRef, useState } from "react"
-import {
-  User,
-  Moon,
-  UtensilsCrossed,
-  Briefcase,
-  Bell,
-  Camera,
-  Loader2,
-} from "lucide-react"
+import { User, Moon, UtensilsCrossed, Briefcase, Camera, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -53,16 +45,6 @@ const TIMEZONES =
 
 type SaveState = "idle" | "saving" | "saved" | "error"
 
-interface NotificationPreferences {
-  email_address: string
-  channels: { email: boolean }
-}
-
-const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
-  email_address: "",
-  channels: { email: false },
-}
-
 /** Small colored icon badge used before each section's title, matching the
  * skill-card / stat-card visual language used across the app. */
 function SectionIcon({
@@ -93,12 +75,6 @@ export default function Profile() {
   const [avatarError, setAvatarError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const [notifPrefs, setNotifPrefs] = useState<NotificationPreferences>(
-    DEFAULT_NOTIFICATION_PREFERENCES
-  )
-  const [notifLoading, setNotifLoading] = useState(true)
-  const [notifSaveState, setNotifSaveState] = useState<SaveState>("idle")
-
   useEffect(() => {
     let cancelled = false
 
@@ -114,28 +90,6 @@ export default function Profile() {
       })
       .finally(() => {
         if (!cancelled) setLoading(false)
-      })
-
-    return () => {
-      cancelled = true
-    }
-  }, [])
-
-  useEffect(() => {
-    let cancelled = false
-
-    fetch(`${API_URL}/api/notification-preferences`)
-      .then((res) => res.json())
-      .then((data: NotificationPreferences) => {
-        if (cancelled) return
-        setNotifPrefs({
-          ...DEFAULT_NOTIFICATION_PREFERENCES,
-          ...data,
-          channels: { ...DEFAULT_NOTIFICATION_PREFERENCES.channels, ...data.channels },
-        })
-      })
-      .finally(() => {
-        if (!cancelled) setNotifLoading(false)
       })
 
     return () => {
@@ -167,28 +121,6 @@ export default function Profile() {
     } finally {
       setAvatarUploading(false)
       if (fileInputRef.current) fileInputRef.current.value = ""
-    }
-  }
-
-  async function handleNotifSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setNotifSaveState("saving")
-    try {
-      const res = await fetch(`${API_URL}/api/notification-preferences`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(notifPrefs),
-      })
-      if (!res.ok) throw new Error(`request failed (${res.status})`)
-      const data: NotificationPreferences = await res.json()
-      setNotifPrefs({
-        ...DEFAULT_NOTIFICATION_PREFERENCES,
-        ...data,
-        channels: { ...DEFAULT_NOTIFICATION_PREFERENCES.channels, ...data.channels },
-      })
-      setNotifSaveState("saved")
-    } catch {
-      setNotifSaveState("error")
     }
   }
 
@@ -484,78 +416,6 @@ export default function Profile() {
               )}
             </div>
           </form>
-
-          {!notifLoading && (
-            <form onSubmit={handleNotifSubmit}>
-              <Card className={cardBase}>
-                <CardHeader>
-                  <div className="flex items-center gap-3">
-                    <SectionIcon
-                      icon={Bell}
-                      className="bg-rose-100 text-rose-600"
-                    />
-                    <div>
-                      <CardTitle>Notifications</CardTitle>
-                      <CardDescription>
-                        Buddy won't send anything until you turn this on.
-                      </CardDescription>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:items-end">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="notif-email">Email address</Label>
-                    <Input
-                      id="notif-email"
-                      type="email"
-                      value={notifPrefs.email_address}
-                      onChange={(e) =>
-                        setNotifPrefs((prev) => ({
-                          ...prev,
-                          email_address: e.target.value,
-                        }))
-                      }
-                      placeholder="you@example.com"
-                    />
-                  </div>
-                  <label className="flex items-center gap-2 text-sm sm:h-8">
-                    <input
-                      type="checkbox"
-                      checked={notifPrefs.channels.email}
-                      onChange={(e) =>
-                        setNotifPrefs((prev) => ({
-                          ...prev,
-                          channels: { ...prev.channels, email: e.target.checked },
-                        }))
-                      }
-                    />
-                    Email me reminders for upcoming tasks
-                  </label>
-                </CardContent>
-              </Card>
-
-              <div className="mt-4 flex items-center gap-3">
-                <Button
-                  type="submit"
-                  disabled={
-                    notifSaveState === "saving" ||
-                    (notifPrefs.channels.email && !notifPrefs.email_address.trim())
-                  }
-                  className="bg-gradient-to-r from-primary to-accent shadow-card hover:opacity-90"
-                >
-                  {notifSaveState === "saving" ? "Saving…" : "Save"}
-                </Button>
-                {notifSaveState === "saved" && (
-                  <span className="text-sm text-muted-foreground">Saved.</span>
-                )}
-                {notifSaveState === "error" && (
-                  <span className="text-sm text-destructive">
-                    Couldn't save. Try again.
-                  </span>
-                )}
-              </div>
-            </form>
-          )}
         </div>
       </div>
     </div>

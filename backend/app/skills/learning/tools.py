@@ -2,9 +2,6 @@ import json
 import logging
 from datetime import date, timedelta
 
-from google.genai import types
-from sqlalchemy import select
-
 from app.common.gemini_client import get_gemini_client
 from app.core.db import AsyncSessionLocal
 from app.core.models import (
@@ -14,6 +11,8 @@ from app.core.models import (
     CourseStatus,
     RevisionItem,
 )
+from google.genai import types
+from sqlalchemy import select
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +35,9 @@ def _course_to_dict(course: Course) -> dict:
     }
 
 
-async def add_course(title: str, provider: str | None = None, deadline: str | None = None) -> dict:
+async def add_course(
+    title: str, provider: str | None = None, deadline: str | None = None
+) -> dict:
     """Add a course to track.
 
     Args:
@@ -144,7 +145,9 @@ async def list_certifications(status: str | None = None) -> list[dict] | dict:
         try:
             status_enum = CertificationStatus(status)
         except ValueError:
-            return {"error": f"invalid status '{status}'. Must be one of: pending, completed."}
+            return {
+                "error": f"invalid status '{status}'. Must be one of: pending, completed."
+            }
     async with AsyncSessionLocal() as db:
         stmt = select(Certification).order_by(Certification.created_at.asc())
         if status_enum is not None:
@@ -153,7 +156,9 @@ async def list_certifications(status: str | None = None) -> list[dict] | dict:
         return [_cert_to_dict(c) for c in result.scalars().all()]
 
 
-async def mark_certification_done(cert_id: int, date_received: str | None = None) -> dict:
+async def mark_certification_done(
+    cert_id: int, date_received: str | None = None
+) -> dict:
     """Mark a certification as completed/received.
 
     Args:
@@ -185,7 +190,9 @@ def _revision_to_dict(item: RevisionItem) -> dict:
     }
 
 
-async def add_revision_item(topic: str, notes: str | None = None, interval_days: int = 1) -> dict:
+async def add_revision_item(
+    topic: str, notes: str | None = None, interval_days: int = 1
+) -> dict:
     """Add a topic to the revision planner, due for review starting today.
 
     Args:
@@ -199,7 +206,10 @@ async def add_revision_item(topic: str, notes: str | None = None, interval_days:
     """
     async with AsyncSessionLocal() as db:
         item = RevisionItem(
-            topic=topic, notes=notes, interval_days=interval_days, next_review_at=date.today()
+            topic=topic,
+            notes=notes,
+            interval_days=interval_days,
+            next_review_at=date.today(),
         )
         db.add(item)
         await db.commit()
@@ -272,15 +282,16 @@ async def generate_learning_roadmap(goal: str | None = None) -> dict:
         return {"error": "No planned or in-progress courses to build a roadmap from."}
 
     course_list = "\n".join(
-        f"- id={c.id}: {c.title}" + (f" ({c.provider})" if c.provider else "") for c in courses
+        f"- id={c.id}: {c.title}" + (f" ({c.provider})" if c.provider else "")
+        for c in courses
     )
     goal_line = f"The user's goal: {goal}\n\n" if goal else ""
     prompt = (
         f"{goal_line}Here are the user's planned/in-progress courses:\n{course_list}\n\n"
         "Order these into a sensible learning roadmap - foundational topics before "
         "advanced ones, related topics grouped together. Return ONLY a JSON array, "
-        "one object per course, each with exactly these keys: \"id\" (the course id, "
-        "integer), \"position\" (1-based order, integer), \"rationale\" (one short "
+        'one object per course, each with exactly these keys: "id" (the course id, '
+        'integer), "position" (1-based order, integer), "rationale" (one short '
         "sentence on why it's placed there)."
     )
 

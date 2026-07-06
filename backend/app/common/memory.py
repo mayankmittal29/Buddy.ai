@@ -2,6 +2,7 @@ from google.genai import types
 from sqlalchemy import select
 
 from app.common.gemini_client import get_gemini_client
+from app.common.pii import redact
 from app.core.db import AsyncSessionLocal
 from app.core.models import MemoryFact
 
@@ -35,6 +36,13 @@ async def remember(fact: str, source_skill: str) -> str:
     Returns:
       A short confirmation string.
     """
+    # Per docs/guardrails/ROOT_AGENT.md's memory-write rules: a "fact" is a
+    # durable preference/routine, never raw PII — redact before embedding
+    # AND storage, not just before display, so a stray email/phone/etc.
+    # the user happened to mention never reaches memory_facts.content at
+    # all. redact() logs when it fires (see app/common/pii.py).
+    fact, _findings = redact(fact)
+
     embedding = await _embed(fact, task_type="RETRIEVAL_DOCUMENT")
     async with AsyncSessionLocal() as session:
         session.add(

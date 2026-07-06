@@ -1,0 +1,70 @@
+# Pre-commit hooks (Prompt 11.5.6). Install the `pre-commit` CLI into an
+# isolated environment, never into backend/venv — see .gitignore's note on
+# why (installing Semgrep directly into the app's venv once downgraded
+# shared dependencies and broke the running backend). Each hook below
+# manages its own isolated environment automatically except the two
+# `local`/`system` ones, which reuse .tools/semgrep-venv.
+#
+# Setup (one-time):
+#   .tools/semgrep-venv/bin/pip install pre-commit detect-secrets
+#   .tools/semgrep-venv/bin/pre-commit install
+#
+# Run on everything once to baseline:
+#   .tools/semgrep-venv/bin/pre-commit run --all-files
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: detect-private-key
+      - id: check-added-large-files
+        args: ["--maxkb=5000"]
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: check-merge-conflict
+
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.5.0
+    hooks:
+      - id: detect-secrets
+        args: ["--baseline", ".secrets.baseline"]
+        exclude: package-lock\.json$|\.lock$
+
+  - repo: https://github.com/psf/black
+    rev: 24.10.0
+    hooks:
+      - id: black
+        files: ^(backend|evals)/.*\.py$
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.4
+    hooks:
+      - id: ruff
+        name: ruff lint (auto-fix)
+        args: [--fix]
+        files: ^(backend|evals)/.*\.py$
+      - id: ruff
+        name: ruff import-sort check
+        args: [--select, I, --no-fix]
+        files: ^(backend|evals)/.*\.py$
+
+  - repo: local
+    hooks:
+      - id: block-secret-bearing-files
+        name: block committing .env/*.pem/*.key/id_rsa files
+        entry: >-
+          bash -c 'echo "BLOCKED: refusing to commit a secret-bearing file
+          (.env, *.pem, *.key, id_rsa/id_ed25519). Remove it from the commit
+          if this is unintentional."; exit 1'
+        language: system
+        # Deliberately excludes .env.example (the committed template) via
+        # a negative lookahead — only a real .env / .env.<environment>
+        # file should ever be blocked.
+        files: '(^|/)\.env$|(^|/)\.env\.(?!example$)[^.]+$|\.pem$|\.key$|(^|/)id_rsa$|(^|/)id_ed25519$'
+        pass_filenames: false
+
+      - id: semgrep-scan
+        name: semgrep security scan (changed files only)
+        entry: .tools/semgrep-venv/bin/semgrep --config .semgrep.yml --config p/python --config p/security-audit --config p/secrets --error
+        language: system
+        files: \.py$

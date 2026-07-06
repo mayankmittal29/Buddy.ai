@@ -1,0 +1,11 @@
+# buddy-mcp reuses backend/app's own SQLAlchemy models and business logic
+# (see server.py's sys.path injection), so it needs the same DB/async-ORM
+# stack as the backend, plus the `mcp` SDK itself. If you're running this
+# from the backend's own venv (recommended — see README.md) everything
+# except `mcp` is already installed there.
+mcp
+sqlalchemy
+asyncpg
+pydantic-settings
+python-dotenv
+google-genai

@@ -35,7 +35,7 @@ export const SKILLS: SkillConfig[] = [
     title: "News",
     description: "A quick, curated briefing on what's happening today.",
     icon: "Newspaper",
-    status: "coming-soon",
+    status: "active",
     accent: { bg: "bg-rose-100", text: "text-rose-600" },
   },
   {
@@ -59,7 +59,7 @@ export const SKILLS: SkillConfig[] = [
     title: "Finance",
     description: "Keep an eye on spending, budgets, and savings goals.",
     icon: "Wallet",
-    status: "coming-soon",
+    status: "active",
     accent: { bg: "bg-green-100", text: "text-green-600" },
   },
   {
@@ -67,7 +67,7 @@ export const SKILLS: SkillConfig[] = [
     title: "Habits",
     description: "Build routines and keep streaks alive.",
     icon: "Repeat",
-    status: "coming-soon",
+    status: "active",
     accent: { bg: "bg-pink-100", text: "text-pink-600" },
   },
   {
@@ -75,15 +75,15 @@ export const SKILLS: SkillConfig[] = [
     title: "Knowledge Base",
     description: "Your personal notes and reference material, searchable.",
     icon: "BookOpen",
-    status: "coming-soon",
+    status: "active",
     accent: { bg: "bg-purple-100", text: "text-purple-600" },
   },
   {
     id: "analytics",
     title: "Analytics",
     description: "See trends across everything Buddy helps you manage.",
-    icon: "BarChart3",
-    status: "coming-soon",
+    icon: "ChartColumn",
+    status: "active",
     accent: { bg: "bg-sky-100", text: "text-sky-600" },
   },
 ]

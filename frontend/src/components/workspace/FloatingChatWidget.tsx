@@ -1,5 +1,5 @@
-import { useRef, useState } from "react"
-import { MessageCircle, Minus } from "lucide-react"
+import { useEffect, useRef, useState } from "react"
+import { MessageCircle, X } from "lucide-react"
 import { ChatPanel } from "@/components/workspace/ChatPanel"
 import { ConversationsPanel } from "@/components/workspace/ConversationsPanel"
 
@@ -56,6 +56,20 @@ export function FloatingChatWidget({
   })
   const dragState = useRef<DragState | null>(null)
   const lastTriggerNonceRef = useRef(0)
+  const rootRef = useRef<HTMLDivElement>(null)
+
+  // Click (or tap) anywhere outside the expanded panel closes it too — not
+  // just the explicit close button.
+  useEffect(() => {
+    if (!expanded) return
+    function handlePointerDownOutside(e: PointerEvent) {
+      if (rootRef.current && !rootRef.current.contains(e.target as Node)) {
+        setExpanded(false)
+      }
+    }
+    document.addEventListener("pointerdown", handlePointerDownOutside)
+    return () => document.removeEventListener("pointerdown", handlePointerDownOutside)
+  }, [expanded])
 
   // An external trigger should auto-expand the widget if it's collapsed,
   // so the user sees the analysis land in chat rather than wondering where
@@ -122,7 +136,7 @@ export function FloatingChatWidget({
   }
 
   return (
-    <div className="fixed z-50" style={{ right: position.right, top: position.top }}>
+    <div ref={rootRef} className="fixed z-50" style={{ right: position.right, top: position.top }}>
       {!expanded ? (
         <button
           type="button"
@@ -152,10 +166,10 @@ export function FloatingChatWidget({
                 e.stopPropagation()
                 setExpanded(false)
               }}
-              aria-label="Minimize chat"
+              aria-label="Close chat"
               className="flex size-6 items-center justify-center rounded-full text-slate-500 transition-colors duration-150 hover:bg-white/60 hover:text-foreground"
             >
-              <Minus className="size-4" />
+              <X className="size-4" />
             </button>
           </div>
           <div className="flex min-h-0 flex-1">

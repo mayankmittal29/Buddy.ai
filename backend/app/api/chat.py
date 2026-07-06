@@ -13,6 +13,7 @@ from sqlalchemy import select
 from app.common.summarize import summarize_title
 from app.core import tracing  # noqa: F401  (propagates LangSmith env vars on import)
 from app.core.db import AsyncSessionLocal
+from app.core.model_router import pop_served_by, request_key_var
 from app.core.models import Conversation, Message
 from app.core.session import (
     APP_NAME,
@@ -132,7 +133,9 @@ async def _stream_chat(
     new_message = types.Content(
         role="user",
         parts=[
-            types.Part(text=f"Active skill: {skill_id}{mode_note}\n\n{skill_instructions}"),
+            types.Part(
+                text=f"Active skill: {skill_id}{mode_note}\n\n{skill_instructions}"
+            ),
             types.Part(text=message),
         ],
     )
@@ -146,6 +149,11 @@ async def _stream_chat(
         inputs={"message": message},
         metadata={"skill_id": skill_id, "conversation_id": conversation_id},
     ) as run:
+        # Lets the model router (app/core/model_router.py) record which
+        # tier/provider/model actually served this turn, keyed by
+        # session_id — set *before* the run so it's visible to whatever
+        # child task(s) ADK's Runner spawns internally to drive it.
+        request_key_var.set(session_id)
         try:
             async for event in runner.run_async(
                 user_id=DEFAULT_USER_ID,
@@ -167,7 +175,14 @@ async def _stream_chat(
             error_detail = str(exc)
 
         final_text = "".join(final_chunks)
-        run.end(outputs={"response": final_text, "error": error_detail})
+        # Which tier/provider/model actually served this turn — recorded by
+        # the fallback client (app/core/model_router.py) the moment a call
+        # succeeds, so a fallback mid-chain is visible in the trace even
+        # though the request as a whole succeeded.
+        run.end(
+            outputs={"response": final_text, "error": error_detail},
+            metadata={"served_by": pop_served_by(session_id)},
+        )
 
     if error_detail is not None:
         yield _sse({"type": "error", "detail": error_detail})
