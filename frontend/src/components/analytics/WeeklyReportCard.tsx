@@ -1,5 +1,6 @@
 import { useState } from "react"
 import { RefreshCw, Sparkles } from "lucide-react"
+import { showSuccess, showError } from "@/lib/toast"
 import { type DateRange, generateWeeklyReport } from "@/components/analytics/api"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cardBase } from "@/lib/styles"
@@ -16,8 +17,11 @@ export function WeeklyReportCard({ range }: { range: DateRange }) {
     try {
       const result = await generateWeeklyReport(range)
       setReport(result.report)
+      showSuccess("Weekly report generated.", { duration: 5000 })
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't generate the report.")
+      const message = err instanceof Error ? err.message : "Couldn't generate the report."
+      setError(message)
+      showError(message, { duration: 5000 })
     } finally {
       setLoading(false)
     }

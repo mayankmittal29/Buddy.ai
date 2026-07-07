@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react"
+import { showSuccess, showError } from "@/lib/toast"
 import {
   Check,
   CheckCircle2,
@@ -80,8 +81,11 @@ export function ResumesPanel({ refreshToken, onChange }: ResumesPanelProps) {
       setVersionLabel("")
       await refresh()
       onChange?.()
+      showSuccess("Resume uploaded.", { duration: 5000 })
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Upload failed.")
+      const message = err instanceof Error ? err.message : "Upload failed."
+      setError(message)
+      showError(message, { duration: 5000 })
     } finally {
       setUploading(false)
       if (fileInputRef.current) fileInputRef.current.value = ""
@@ -89,16 +93,32 @@ export function ResumesPanel({ refreshToken, onChange }: ResumesPanelProps) {
   }
 
   async function handleSetActive(id: number) {
-    await updateResume(id, { is_active: true })
-    await refresh()
-    onChange?.()
+    try {
+      await updateResume(id, { is_active: true })
+      await refresh()
+      onChange?.()
+      showSuccess("Active resume changed.", { duration: 5000 })
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Couldn't change the active resume.", {
+        duration: 5000,
+      })
+      throw err
+    }
   }
 
   async function handleDelete(id: number) {
     if (!window.confirm("Delete this resume version?")) return
-    await deleteResume(id)
-    await refresh()
-    onChange?.()
+    try {
+      await deleteResume(id)
+      await refresh()
+      onChange?.()
+      showSuccess("Resume deleted.", { duration: 5000 })
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Couldn't delete the resume.", {
+        duration: 5000,
+      })
+      throw err
+    }
   }
 
   function startEdit(resume: Resume) {
@@ -109,10 +129,18 @@ export function ResumesPanel({ refreshToken, onChange }: ResumesPanelProps) {
   async function handleSaveEdit(id: number) {
     const trimmed = editValue.trim()
     if (!trimmed) return
-    await updateResume(id, { version_label: trimmed })
-    setEditingId(null)
-    await refresh()
-    onChange?.()
+    try {
+      await updateResume(id, { version_label: trimmed })
+      setEditingId(null)
+      await refresh()
+      onChange?.()
+      showSuccess("Resume label updated.", { duration: 5000 })
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Couldn't update the resume label.", {
+        duration: 5000,
+      })
+      throw err
+    }
   }
 
   return (

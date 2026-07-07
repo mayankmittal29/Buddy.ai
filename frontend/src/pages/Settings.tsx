@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react"
-import { Bell } from "lucide-react"
+import { Bell, Check, Palette } from "lucide-react"
+import { showSuccess, showError } from "@/lib/toast"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -10,8 +11,9 @@ import {
   CardDescription,
   CardContent,
 } from "@/components/ui/card"
-import { cardBase, pageShell } from "@/lib/styles"
+import { cardBase, pageShell, sectionGap } from "@/lib/styles"
 import { cn } from "@/lib/utils"
+import { THEMES, useThemeStore } from "@/stores/themeStore"
 
 const API_URL = import.meta.env.VITE_API_URL
 
@@ -73,9 +75,22 @@ export default function Settings() {
         channels: { ...DEFAULT_NOTIFICATION_PREFERENCES.channels, ...data.channels },
       })
       setNotifSaveState("saved")
+      showSuccess("Notification preferences saved.", { duration: 5000 })
     } catch {
       setNotifSaveState("error")
+      showError("Couldn't save notification preferences.", { duration: 5000 })
     }
+  }
+
+  const theme = useThemeStore((s) => s.theme)
+  const setTheme = useThemeStore((s) => s.setTheme)
+
+  function handleThemeChange(next: (typeof THEMES)[number]["id"]) {
+    setTheme(next)
+    showSuccess(
+      `Theme set to ${THEMES.find((t) => t.id === next)?.label ?? next}.`,
+      { duration: 5000 }
+    )
   }
 
   return (
@@ -85,6 +100,53 @@ export default function Settings() {
         <p className="mt-2 text-muted-foreground">
           Configure how and when Buddy reaches out to you.
         </p>
+      </div>
+
+      <div className={cn(sectionGap, "mb-4")}>
+        <Card className={cardBase}>
+          <CardHeader>
+            <div className="flex items-center gap-3">
+              <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-accent-50 text-accent">
+                <Palette className="size-4.5" />
+              </div>
+              <div>
+                <CardTitle>Appearance</CardTitle>
+                <CardDescription>Pick a colour theme for the whole app.</CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {THEMES.map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => handleThemeChange(t.id)}
+                  className={cn(
+                    "flex flex-col gap-2 rounded-xl border p-3 text-left transition-all duration-150",
+                    theme === t.id
+                      ? "border-primary ring-2 ring-primary/30"
+                      : "border-border-subtle hover:border-primary/50"
+                  )}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex -space-x-1.5">
+                      {t.swatch.map((color, i) => (
+                        <span
+                          key={i}
+                          className="size-5 rounded-full border-2 border-surface"
+                          style={{ backgroundColor: color }}
+                        />
+                      ))}
+                    </div>
+                    {theme === t.id && <Check className="size-4 text-primary" />}
+                  </div>
+                  <span className="text-sm font-medium text-foreground">{t.label}</span>
+                </button>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {!notifLoading && (

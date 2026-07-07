@@ -27,3 +27,5 @@ mcp
 pytest
 pytest-asyncio
 defusedxml
+pyjwt
+argon2-cffi

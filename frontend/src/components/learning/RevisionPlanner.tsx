@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react"
+import { showSuccess, showError } from "@/lib/toast"
 import { Brain, CalendarCheck, Plus, RotateCw, Trash2 } from "lucide-react"
 import {
   type RevisionItem,
@@ -52,20 +53,42 @@ export function RevisionPlanner({ refreshToken }: RevisionPlannerProps) {
       setTopic("")
       setAdding(false)
       await refresh()
+      showSuccess("Revision item added.", { duration: 5000 })
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Couldn't add the revision item.", {
+        duration: 5000,
+      })
+      throw err
     } finally {
       setSaving(false)
     }
   }
 
   async function handleMarkRevised(id: number) {
-    await markRevisionRevised(id)
-    await refresh()
+    try {
+      await markRevisionRevised(id)
+      await refresh()
+      showSuccess("Marked as revised.", { duration: 5000 })
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Couldn't mark this as revised.", {
+        duration: 5000,
+      })
+      throw err
+    }
   }
 
   async function handleDelete(id: number) {
     if (!window.confirm("Delete this revision topic?")) return
-    await deleteRevisionItem(id)
-    await refresh()
+    try {
+      await deleteRevisionItem(id)
+      await refresh()
+      showSuccess("Revision item deleted.", { duration: 5000 })
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Couldn't delete the revision item.", {
+        duration: 5000,
+      })
+      throw err
+    }
   }
 
   const today = new Date().toISOString().slice(0, 10)

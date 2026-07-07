@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react"
 import { Pencil, X } from "lucide-react"
+import { showSuccess, showError } from "@/lib/toast"
 import { type Note, updateNote } from "@/components/knowledge/api"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -56,6 +57,10 @@ export function NoteDetailModal({
       const updated = await updateNote(note.id, { title: title.trim(), content: content.trim() })
       onUpdated(updated)
       setEditing(false)
+      showSuccess("Note updated.", { duration: 5000 })
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Couldn't update the note.", { duration: 5000 })
+      throw err
     } finally {
       setSaving(false)
     }

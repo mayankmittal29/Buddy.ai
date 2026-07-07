@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { KanbanSquare, ListTodo, Plus, Search, TrendingUp, X } from "lucide-react"
+import { showSuccess, showError } from "@/lib/toast"
 import {
   type Task,
   type TaskPriority,
@@ -155,25 +156,57 @@ export function TaskPanel({ refreshToken }: TaskPanelProps = {}) {
   }, [tasks, search])
 
   async function handleCreate(input: Parameters<typeof createTask>[0]) {
-    await createTask(input)
-    await refresh()
+    try {
+      await createTask(input)
+      await refresh()
+      showSuccess("Task created.", { duration: 5000 })
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Couldn't create the task.", {
+        duration: 5000,
+      })
+      throw err
+    }
   }
 
   async function handleComplete(id: number) {
-    await updateTask(id, { status: "done" })
-    await refresh()
+    try {
+      await updateTask(id, { status: "done" })
+      await refresh()
+      showSuccess("Task completed.", { duration: 5000 })
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Couldn't complete the task.", {
+        duration: 5000,
+      })
+      throw err
+    }
   }
 
   async function handleUpdate(id: number, input: TaskUpdateInput) {
-    await updateTask(id, input)
-    await refresh()
+    try {
+      await updateTask(id, input)
+      await refresh()
+      showSuccess("Task updated.", { duration: 5000 })
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Couldn't update the task.", {
+        duration: 5000,
+      })
+      throw err
+    }
   }
 
   async function handleDelete(id: number) {
     if (!window.confirm("Delete this task?")) return
-    await deleteTask(id)
-    if (detailTask?.id === id) setDetailTask(null)
-    await refresh()
+    try {
+      await deleteTask(id)
+      if (detailTask?.id === id) setDetailTask(null)
+      await refresh()
+      showSuccess("Task deleted.", { duration: 5000 })
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Couldn't delete the task.", {
+        duration: 5000,
+      })
+      throw err
+    }
   }
 
   const pendingCount = tasks.filter((t) => t.status === "pending").length

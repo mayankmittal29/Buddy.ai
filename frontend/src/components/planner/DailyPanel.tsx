@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react"
 import { CalendarClock, ListTodo, Sunrise, Sunset } from "lucide-react"
+import { showSuccess, showError } from "@/lib/toast"
 import {
   type DailySchedule,
   type PlannerItem,
@@ -45,8 +46,16 @@ export function DailyPanel({ refreshToken }: DailyPanelProps) {
   }, [refreshToken])
 
   async function handleComplete(id: number) {
-    await updatePlannerItem(id, { status: "done" })
-    await refresh()
+    try {
+      await updatePlannerItem(id, { status: "done" })
+      await refresh()
+      showSuccess("Planner item marked done.", { duration: 5000 })
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Couldn't complete the planner item.", {
+        duration: 5000,
+      })
+      throw err
+    }
   }
 
   const pendingGoals = goals.filter((g) => g.status === "pending")

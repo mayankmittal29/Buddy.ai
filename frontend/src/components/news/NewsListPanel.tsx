@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react"
 import { Check, ExternalLink, Newspaper, RefreshCw, Star } from "lucide-react"
+import { showSuccess, showError } from "@/lib/toast"
 import {
   type NewsCategory,
   type NewsItem,
@@ -167,19 +168,29 @@ export function NewsListPanel({ refreshToken }: NewsListPanelProps) {
   async function handleToggleStar(item: NewsItem) {
     const nextStarred = !item.starred
     setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, starred: nextStarred } : i)))
-    const result = await updateNewsItem(item.id, { starred: nextStarred })
-    if (result === null) {
-      // Unstarred while already past the 3-day retention window — the
-      // backend deleted it outright instead of just updating it.
-      setItems((prev) => prev.filter((i) => i.id !== item.id))
+    try {
+      const result = await updateNewsItem(item.id, { starred: nextStarred })
+      if (result === null) {
+        // Unstarred while already past the 3-day retention window — the
+        // backend deleted it outright instead of just updating it.
+        setItems((prev) => prev.filter((i) => i.id !== item.id))
+      }
+      showSuccess(nextStarred ? "Starred." : "Unstarred.", { duration: 5000 })
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Couldn't update the item.", { duration: 5000 })
+      throw err
     }
   }
 
   async function handleRefreshNow() {
     setRefreshing(true)
     try {
-      await generateDigest()
+      const result = await generateDigest()
       await refresh()
+      showSuccess(`Digest refreshed — ${result.added} new item(s).`, { duration: 5000 })
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Couldn't refresh the digest.", { duration: 5000 })
+      throw err
     } finally {
       setRefreshing(false)
     }

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react"
+import { showSuccess, showError } from "@/lib/toast"
 import { BookOpen, Check, ChevronDown, ChevronRight, Plus, Trash2 } from "lucide-react"
 import {
   type Course,
@@ -119,22 +120,44 @@ export function CoursesList({ refreshToken, onChange }: CoursesListProps) {
       setAdding(false)
       await refresh()
       onChange?.()
+      showSuccess("Course added.", { duration: 5000 })
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Couldn't add the course.", {
+        duration: 5000,
+      })
+      throw err
     } finally {
       setSaving(false)
     }
   }
 
   async function handleToggleDone(course: Course) {
-    await updateCourse(course.id, { status: course.status === "done" ? "planned" : "done" })
-    await refresh()
-    onChange?.()
+    try {
+      await updateCourse(course.id, { status: course.status === "done" ? "planned" : "done" })
+      await refresh()
+      onChange?.()
+      showSuccess("Course updated.", { duration: 5000 })
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Couldn't update the course.", {
+        duration: 5000,
+      })
+      throw err
+    }
   }
 
   async function handleDelete(id: number) {
     if (!window.confirm("Delete this course?")) return
-    await deleteCourse(id)
-    await refresh()
-    onChange?.()
+    try {
+      await deleteCourse(id)
+      await refresh()
+      onChange?.()
+      showSuccess("Course deleted.", { duration: 5000 })
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Couldn't delete the course.", {
+        duration: 5000,
+      })
+      throw err
+    }
   }
 
   const active = courses.filter((c) => c.status !== "done")

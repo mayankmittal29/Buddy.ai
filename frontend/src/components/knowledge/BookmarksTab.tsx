@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react"
 import { Bookmark as BookmarkIcon, Check, ExternalLink, Pencil, Plus, Trash2, X } from "lucide-react"
+import { showSuccess, showError } from "@/lib/toast"
 import {
   type Bookmark,
   createBookmark,
@@ -44,14 +45,24 @@ export function BookmarksTab() {
       setTitle("")
       setNote("")
       await refresh()
+      showSuccess("Bookmark added.", { duration: 5000 })
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Couldn't add the bookmark.", { duration: 5000 })
+      throw err
     } finally {
       setSaving(false)
     }
   }
 
   async function handleDelete(id: number) {
-    await deleteBookmark(id)
-    await refresh()
+    try {
+      await deleteBookmark(id)
+      await refresh()
+      showSuccess("Bookmark deleted.", { duration: 5000 })
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Couldn't delete the bookmark.", { duration: 5000 })
+      throw err
+    }
   }
 
   function startEdit(bookmark: Bookmark) {
@@ -62,13 +73,19 @@ export function BookmarksTab() {
 
   async function handleEditSave(bookmark: Bookmark) {
     if (!editTitle.trim() || !editUrl.trim()) return
-    const updated = await updateBookmark(bookmark.id, {
-      title: editTitle.trim(),
-      url: editUrl.trim(),
-      note: bookmark.note,
-    })
-    setBookmarks((prev) => prev.map((b) => (b.id === bookmark.id ? updated : b)))
-    setEditingId(null)
+    try {
+      const updated = await updateBookmark(bookmark.id, {
+        title: editTitle.trim(),
+        url: editUrl.trim(),
+        note: bookmark.note,
+      })
+      setBookmarks((prev) => prev.map((b) => (b.id === bookmark.id ? updated : b)))
+      setEditingId(null)
+      showSuccess("Bookmark updated.", { duration: 5000 })
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Couldn't update the bookmark.", { duration: 5000 })
+      throw err
+    }
   }
 
   return (

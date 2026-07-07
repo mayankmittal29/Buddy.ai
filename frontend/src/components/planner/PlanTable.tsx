@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react"
 import { CheckCircle2, Circle, Download, ListTodo } from "lucide-react"
+import { showSuccess, showError } from "@/lib/toast"
 import {
   type PlannerItem,
   type PlannerMode,
@@ -40,8 +41,16 @@ export function PlanTable({ mode, refreshToken }: PlanTableProps) {
   }, [refreshToken])
 
   async function handleToggle(item: PlannerItem) {
-    await updatePlannerItem(item.id, { status: item.status === "done" ? "pending" : "done" })
-    await refresh()
+    try {
+      await updatePlannerItem(item.id, { status: item.status === "done" ? "pending" : "done" })
+      await refresh()
+      showSuccess("Planner item updated.", { duration: 5000 })
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Couldn't update the planner item.", {
+        duration: 5000,
+      })
+      throw err
+    }
   }
 
   return (

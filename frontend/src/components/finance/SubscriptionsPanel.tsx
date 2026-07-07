@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import { showSuccess, showError } from "@/lib/toast"
 import { CalendarClock, Plus, Repeat2, Trash2 } from "lucide-react"
 import {
   type BillingCycle,
@@ -52,15 +53,25 @@ export function SubscriptionsPanel({ refreshToken, onChange }: SubscriptionsPane
       setCycle("monthly")
       await refresh()
       onChange?.()
+      showSuccess("Subscription added.", { duration: 5000 })
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Couldn't add the subscription.", { duration: 5000 })
+      throw err
     } finally {
       setSaving(false)
     }
   }
 
   async function handleDelete(id: number) {
-    await deleteSubscription(id)
-    await refresh()
-    onChange?.()
+    try {
+      await deleteSubscription(id)
+      await refresh()
+      onChange?.()
+      showSuccess("Subscription deleted.", { duration: 5000 })
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Couldn't delete the subscription.", { duration: 5000 })
+      throw err
+    }
   }
 
   return (

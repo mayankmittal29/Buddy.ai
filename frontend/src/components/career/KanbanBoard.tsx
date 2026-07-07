@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
+import { showSuccess, showError } from "@/lib/toast"
 import { Briefcase, Pencil, Plus, Search, Trash2, X } from "lucide-react"
 import {
   JOB_CATEGORIES,
@@ -201,6 +202,7 @@ export function KanbanBoard({ refreshToken }: KanbanBoardProps) {
         notes: form.notes.trim() || null,
         status: form.status,
       }
+      const isEdit = Boolean(form.id)
       if (form.id) {
         await updateApplication(form.id, payload)
       } else {
@@ -208,6 +210,12 @@ export function KanbanBoard({ refreshToken }: KanbanBoardProps) {
       }
       setFormOpen(false)
       await refresh()
+      showSuccess(isEdit ? "Application updated." : "Application added.", { duration: 5000 })
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Couldn't save the application.", {
+        duration: 5000,
+      })
+      throw err
     } finally {
       setSaving(false)
     }
@@ -215,14 +223,30 @@ export function KanbanBoard({ refreshToken }: KanbanBoardProps) {
 
   async function handleDelete(id: number) {
     if (!window.confirm("Delete this application?")) return
-    await deleteApplication(id)
-    if (detailApp?.id === id) setDetailApp(null)
-    await refresh()
+    try {
+      await deleteApplication(id)
+      if (detailApp?.id === id) setDetailApp(null)
+      await refresh()
+      showSuccess("Application deleted.", { duration: 5000 })
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Couldn't delete the application.", {
+        duration: 5000,
+      })
+      throw err
+    }
   }
 
   async function handleStatusChange(id: number, status: JobApplicationStatus) {
-    await updateApplication(id, { status })
-    await refresh()
+    try {
+      await updateApplication(id, { status })
+      await refresh()
+      showSuccess("Application status updated.", { duration: 5000 })
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Couldn't update the application status.", {
+        duration: 5000,
+      })
+      throw err
+    }
   }
 
   function handleDrop(status: JobApplicationStatus) {

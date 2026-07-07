@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
+import { showSuccess, showError } from "@/lib/toast"
 import { Flame, Plus, Repeat, Search, Trash2, Trophy, X } from "lucide-react"
 import {
   type Habit,
@@ -181,22 +182,43 @@ export function HabitsList({ refreshToken, onChange }: HabitsListProps) {
       setAdding(false)
       await refresh()
       onChange?.()
+      showSuccess("Habit added.", { duration: 5000 })
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Couldn't add the habit.", { duration: 5000 })
+      throw err
     } finally {
       setSaving(false)
     }
   }
 
   async function handleToggle(id: number) {
-    await toggleHabitToday(id)
-    await refresh()
-    onChange?.()
+    const habit = habits.find((h) => h.id === id)
+    const wasDone = habit ? isDoneToday(habit) : undefined
+    try {
+      await toggleHabitToday(id)
+      await refresh()
+      onChange?.()
+      showSuccess(
+        wasDone === undefined ? "Habit updated." : wasDone ? "Unlogged for today." : "Logged for today.",
+        { duration: 5000 }
+      )
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Couldn't update the habit.", { duration: 5000 })
+      throw err
+    }
   }
 
   async function handleDelete(id: number) {
     if (!window.confirm("Delete this habit? This removes all its logged history.")) return
-    await deleteHabit(id)
-    await refresh()
-    onChange?.()
+    try {
+      await deleteHabit(id)
+      await refresh()
+      onChange?.()
+      showSuccess("Habit deleted.", { duration: 5000 })
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Couldn't delete the habit.", { duration: 5000 })
+      throw err
+    }
   }
 
   return (

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import { showSuccess, showError } from "@/lib/toast"
 import { Plus, Receipt, Trash2 } from "lucide-react"
 import { type Expense, createExpense, deleteExpense, listExpenses } from "@/components/finance/api"
 import { EmptyState } from "@/components/ui/empty-state"
@@ -44,15 +45,25 @@ export function ExpensesPanel({ refreshToken, onChange }: ExpensesPanelProps) {
       setNote("")
       await refresh()
       onChange?.()
+      showSuccess("Expense added.", { duration: 5000 })
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Couldn't add the expense.", { duration: 5000 })
+      throw err
     } finally {
       setSaving(false)
     }
   }
 
   async function handleDelete(id: number) {
-    await deleteExpense(id)
-    await refresh()
-    onChange?.()
+    try {
+      await deleteExpense(id)
+      await refresh()
+      onChange?.()
+      showSuccess("Expense deleted.", { duration: 5000 })
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Couldn't delete the expense.", { duration: 5000 })
+      throw err
+    }
   }
 
   return (

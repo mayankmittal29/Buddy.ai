@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react"
+import { showSuccess, showError } from "@/lib/toast"
 import { ExternalLink, FileSearch, Upload } from "lucide-react"
 import { type Resume, listResumes, extractJdText } from "@/components/career/api"
 import { Button } from "@/components/ui/button"
@@ -48,8 +49,11 @@ export function SkillGapPanel({ refreshToken, onAnalyze }: SkillGapPanelProps) {
     try {
       const text = await extractJdText(file)
       setJdText(text)
+      showSuccess("Job description analyzed.", { duration: 5000 })
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't extract text from that file.")
+      const message = err instanceof Error ? err.message : "Couldn't extract text from that file."
+      setError(message)
+      showError(message, { duration: 5000 })
     } finally {
       setExtracting(false)
       if (fileInputRef.current) fileInputRef.current.value = ""
@@ -78,7 +82,7 @@ export function SkillGapPanel({ refreshToken, onAnalyze }: SkillGapPanelProps) {
         <>
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-muted-foreground">Resume version</label>
-            <Select value={resumeId} onValueChange={setResumeId}>
+            <Select value={resumeId} onValueChange={(value) => setResumeId(value ?? "")}>
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Choose a resume version">
                   {(value: string | null) => {

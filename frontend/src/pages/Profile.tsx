@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react"
-import { User, Moon, UtensilsCrossed, Briefcase, Camera, Loader2 } from "lucide-react"
+import { User, Moon, UtensilsCrossed, Briefcase, Camera, Loader2, IdCard } from "lucide-react"
+import { showSuccess, showError } from "@/lib/toast"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -13,6 +14,15 @@ import {
 import { Skeleton } from "@/components/ui/skeleton"
 import { cardBase, pageShell, sectionGap } from "@/lib/styles"
 import { cn } from "@/lib/utils"
+import { calculateAge, formatDob } from "@/lib/date"
+import { useAuthStore } from "@/stores/authStore"
+
+const GENDER_LABELS: Record<string, string> = {
+  male: "Male",
+  female: "Female",
+  other: "Other",
+  prefer_not_to_say: "Prefer not to say",
+}
 
 const API_URL = import.meta.env.VITE_API_URL
 
@@ -67,6 +77,8 @@ function SectionIcon({
 }
 
 export default function Profile() {
+  const authUser = useAuthStore((s) => s.user)
+
   const [profile, setProfile] = useState<ProfileData>(DEFAULT_PROFILE)
   const [loading, setLoading] = useState(true)
   const [saveState, setSaveState] = useState<SaveState>("idle")
@@ -116,8 +128,11 @@ export default function Profile() {
       }
       const data: ProfileData = await res.json()
       setProfile((prev) => ({ ...prev, avatar_url: data.avatar_url }))
+      showSuccess("Profile photo updated.", { duration: 5000 })
     } catch (err) {
-      setAvatarError(err instanceof Error ? err.message : "Upload failed.")
+      const message = err instanceof Error ? err.message : "Upload failed."
+      setAvatarError(message)
+      showError(message, { duration: 5000 })
     } finally {
       setAvatarUploading(false)
       if (fileInputRef.current) fileInputRef.current.value = ""
@@ -155,8 +170,10 @@ export default function Profile() {
         meal_times: { ...DEFAULT_PROFILE.meal_times, ...data.meal_times },
       })
       setSaveState("saved")
+      showSuccess("Profile saved.", { duration: 5000 })
     } catch {
       setSaveState("error")
+      showError("Couldn't save your profile.", { duration: 5000 })
     }
   }
 
@@ -290,6 +307,54 @@ export default function Profile() {
                   </div>
                 </CardContent>
               </Card>
+
+              {authUser && (
+                <Card className={cn(cardBase, "sm:col-span-2")}>
+                  <CardHeader>
+                    <div className="flex items-center gap-3">
+                      <SectionIcon
+                        icon={IdCard}
+                        className="bg-violet-100 text-violet-600"
+                      />
+                      <div>
+                        <CardTitle>About you</CardTitle>
+                        <CardDescription>From your account, set at signup.</CardDescription>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Occupation</p>
+                      <p className="mt-0.5 text-sm font-medium text-foreground">
+                        {authUser.occupation || "—"}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Current CTC</p>
+                      <p className="mt-0.5 text-sm font-medium text-foreground">
+                        {authUser.current_ctc != null
+                          ? new Intl.NumberFormat("en-IN").format(authUser.current_ctc)
+                          : "—"}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Gender</p>
+                      <p className="mt-0.5 text-sm font-medium text-foreground">
+                        {GENDER_LABELS[authUser.gender] ?? authUser.gender}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Date of birth</p>
+                      <p className="mt-0.5 text-sm font-medium text-foreground">
+                        {formatDob(authUser.dob)}{" "}
+                        <span className="text-muted-foreground">
+                          ({calculateAge(authUser.dob)} yrs)
+                        </span>
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
 
               <Card className={cardBase}>
                 <CardHeader>

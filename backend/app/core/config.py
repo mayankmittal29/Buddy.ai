@@ -22,6 +22,15 @@ class Settings(BaseSettings):
 
     database_url: str = "postgresql+asyncpg://buddy:buddy@localhost:5432/buddy"
 
+    # Signs access-token JWTs (app/core/security.py) — set a real random
+    # value via .env in any shared/deployed environment; the fallback below
+    # is dev-only so a fresh checkout still runs without extra setup.
+    jwt_secret: str = "dev-only-insecure-secret-change-me"
+
+    # Public site origin the frontend runs on — used to build the
+    # password-reset link sent by email (app/api/auth.py).
+    frontend_url: str = "http://localhost:5173"
+
     langsmith_api_key: str = ""
     langsmith_project: str = "buddy"
 

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { showSuccess, showError } from "@/lib/toast"
 import {
   Award,
   Check,
@@ -363,6 +364,7 @@ export function CertificationsList({ refreshToken, onChange }: CertificationsLis
         credential_url: form.credential_url.trim() || null,
         tags: form.tags,
       }
+      const isEdit = Boolean(form.id)
       if (form.id) {
         await updateCertification(form.id, payload)
       } else {
@@ -371,35 +373,67 @@ export function CertificationsList({ refreshToken, onChange }: CertificationsLis
       setFormOpen(false)
       await refresh()
       onChange?.()
+      showSuccess(isEdit ? "Certification updated." : "Certification added.", {
+        duration: 5000,
+      })
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Couldn't save the certification.", {
+        duration: 5000,
+      })
+      throw err
     } finally {
       setSaving(false)
     }
   }
 
   async function handleToggleDone(cert: Certification) {
-    if (cert.status === "completed") {
-      await updateCertification(cert.id, { status: "pending" })
-    } else {
-      await updateCertification(cert.id, {
-        status: "completed",
-        date_received: cert.date_received ?? new Date().toISOString().slice(0, 10),
+    try {
+      if (cert.status === "completed") {
+        await updateCertification(cert.id, { status: "pending" })
+      } else {
+        await updateCertification(cert.id, {
+          status: "completed",
+          date_received: cert.date_received ?? new Date().toISOString().slice(0, 10),
+        })
+      }
+      await refresh()
+      onChange?.()
+      showSuccess("Certification updated.", { duration: 5000 })
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Couldn't update the certification.", {
+        duration: 5000,
       })
+      throw err
     }
-    await refresh()
-    onChange?.()
   }
 
   async function handleDelete(id: number) {
     if (!window.confirm("Delete this certification?")) return
-    await deleteCertification(id)
-    if (detailCert?.id === id) setDetailCert(null)
-    await refresh()
-    onChange?.()
+    try {
+      await deleteCertification(id)
+      if (detailCert?.id === id) setDetailCert(null)
+      await refresh()
+      onChange?.()
+      showSuccess("Certification deleted.", { duration: 5000 })
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Couldn't delete the certification.", {
+        duration: 5000,
+      })
+      throw err
+    }
   }
 
   async function handleFileUploaded(id: number, file: File) {
-    await uploadCertificationFile(id, file)
-    await refresh()
+    try {
+      await uploadCertificationFile(id, file)
+      await refresh()
+      showSuccess("Certificate file uploaded.", { duration: 5000 })
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Couldn't upload the certificate file.", {
+        duration: 5000,
+      })
+      throw err
+    }
   }
 
   return (

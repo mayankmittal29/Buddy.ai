@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react"
 import { NotebookPen, Pencil, Plus, Trash2 } from "lucide-react"
+import { showSuccess, showError } from "@/lib/toast"
 import { type Note, createNote, deleteNote, listNotes } from "@/components/knowledge/api"
 import { NoteDetailModal } from "@/components/knowledge/NoteDetailModal"
 import { EmptyState } from "@/components/ui/empty-state"
@@ -37,15 +38,25 @@ export function NotesTab() {
       setTitle("")
       setContent("")
       await refresh()
+      showSuccess("Note added.", { duration: 5000 })
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Couldn't add the note.", { duration: 5000 })
+      throw err
     } finally {
       setSaving(false)
     }
   }
 
   async function handleDelete(id: number) {
-    await deleteNote(id)
-    if (detailNote?.id === id) setDetailNote(null)
-    await refresh()
+    try {
+      await deleteNote(id)
+      if (detailNote?.id === id) setDetailNote(null)
+      await refresh()
+      showSuccess("Note deleted.", { duration: 5000 })
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Couldn't delete the note.", { duration: 5000 })
+      throw err
+    }
   }
 
   function handleNoteUpdated(updated: Note) {

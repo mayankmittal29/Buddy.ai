@@ -71,6 +71,34 @@ buddy/
   .env.example
 ```
 
+## 🗄️ Database Schema
+
+All 28 tables live in one Postgres database (`backend/app/core/models.py`, migrated via
+Alembic — `backend/alembic/versions/`), grouped here by what they back:
+
+| Domain | Tables |
+|---|---|
+| **Accounts & auth** | `users`, `refresh_tokens`, `password_reset_tokens` |
+| **Core / cross-skill** | `conversations`, `messages`, `memory_facts`, `user_profile`, `notification_preferences`, `notifications` |
+| **Tasks** | `tasks` |
+| **Planner** | `planner_items` |
+| **Learning Hub** | `courses`, `certifications`, `revision_items` |
+| **Career Hub** | `resumes`, `job_applications` |
+| **Habit Tracker** | `habits`, `habit_logs` |
+| **Finance Tracker** | `expenses`, `budgets`, `subscriptions`, `savings_goals`, `savings_entries` |
+| **Personalized News** | `news_items` |
+| **Knowledge Base** | `notes`, `bookmarks`, `documents`, `document_chunks` |
+
+Notes:
+- `users` backs real accounts (signup/login) — everything else stays the single-user
+  schema it always was (no per-account `user_id` scoping on tasks/habits/finance/etc.).
+  See the "🔑 Authentication & Accounts" section below.
+- `memory_facts` is Buddy's long-term semantic memory (pgvector embeddings, shared
+  across every skill via the `remember`/`recall` tools), separate from `conversations`/
+  `messages`, which are just per-session chat history.
+- `document_chunks` holds pgvector embeddings for the Knowledge Base's RAG search over
+  `documents`.
+
 ## ⚙️ Backend Setup
 
 The backend is a Python/FastAPI project located in `backend/`.
@@ -178,7 +206,8 @@ deactivate
 ## 🖥️ Frontend Setup
 
 The frontend is a React + TypeScript app (Vite) located in `frontend/`, styled with Tailwind CSS
-and shadcn/ui (neutral theme). Requires Node.js 18, 20, or 22+.
+and shadcn/ui (neutral theme), with `zustand` for state (auth session, theme) and
+`react-hot-toast` for notifications. Requires Node.js 18, 20, or 22+.
 
 ### 1. Install dependencies
 
@@ -201,9 +230,51 @@ cp .env.example .env
 npm run dev
 ```
 
-The app is served at `http://localhost:5173`. With the backend running, the status bar at the
-top of the page should read "status: ok". Placeholder routes are set up at `/`, `/profile`, and
-`/about`.
+The app is served at `http://localhost:5173`. With the backend running, sign up at
+`/signup`, then log in at `/login` — every other route redirects there until you do.
+
+## 🔑 Authentication & Accounts
+
+Custom FastAPI auth — no third-party auth provider. Sign up with an email or mobile
+number as your username, name, current occupation, current CTC (optional), gender, and
+date of birth; log in with just username + password (eye icon to show/hide it).
+
+**Libraries:**
+- [`PyJWT`](https://pyjwt.readthedocs.io/) — short-lived (15 min) access tokens.
+- [`argon2-cffi`](https://argon2-cffi.readthedocs.io/) — Argon2 password hashing (not bcrypt/sha256).
+- Stdlib `secrets` + `hashlib` — opaque, SHA-256-hashed refresh and password-reset tokens (not JWTs, so they're individually revocable from the DB rather than just expiring).
+
+**How it works:**
+- **JWT access tokens + rotating refresh tokens**, both in **HttpOnly, SameSite=Lax
+  cookies** — never touched by frontend JS, so there's nothing for an XSS payload to
+  steal via `document.cookie`. Every `/api/auth/refresh` call revokes the old refresh
+  token and issues a new one (rotation), rather than reusing the same one indefinitely.
+- **Signup does not log you in.** `POST /api/auth/signup` only creates the account
+  (`201`, no cookies set) — the frontend sends you to `/login` afterward, so signup and
+  login stay two distinct, explicit steps.
+- **Forgot / reset password**: `POST /api/auth/forgot-password` emails a one-hour,
+  single-use reset link (only for email-shaped usernames — no SMS/WhatsApp integration
+  exists to reach a mobile-number username); always returns the same generic response
+  either way, so it can't be used to enumerate which accounts exist.
+  `POST /api/auth/reset-password` consumes that token and revokes every existing
+  refresh token for the account, forcing a fresh login everywhere.
+- **Scope note:** `users` backs real accounts, but the rest of the app's data (tasks,
+  habits, finance, etc.) is still the single-user schema it always was — see the
+  "🗄️ Database Schema" section above.
+
+**On top of the base auth system:**
+- **Theme picker** (Settings page) — 8 colour themes (Light, Dark, Dracula, Synthwave,
+  Forest, Corporate, Luxury, Cupcake), inspired by DaisyUI's popular theme names but
+  implemented as plain CSS-variable overrides swapped via a `data-theme` attribute
+  (not the `daisyui` Tailwind plugin itself, which would collide with this app's
+  existing shadcn/ui component classes). Persisted to `localStorage` via `zustand`.
+- **Toast notifications** (`react-hot-toast`, wrapped in `frontend/src/lib/toast.tsx`)
+  — every create/update/delete/upload across all 9 skills shows a top-center toast for
+  3 seconds, with a close (✕) button, and clicking anywhere outside a toast dismisses
+  it too. One shared `showSuccess`/`showError` pair keeps every notification in the
+  app looking and behaving the same way.
+- **`zustand`** for client state — `authStore` (session/user) and `themeStore` (active
+  theme), both small enough to not need Redux/Context-provider boilerplate.
 
 ## 🔐 Security Scanning
 

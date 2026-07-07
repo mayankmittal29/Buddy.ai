@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import { showSuccess, showError } from "@/lib/toast"
 import { PiggyBank, Plus, Trash2 } from "lucide-react"
 import {
   type SavingsGoal,
@@ -88,15 +89,25 @@ export function SavingsGoalsPanel({ refreshToken, onChange }: SavingsGoalsPanelP
       setCurrent("")
       await refresh()
       onChange?.()
+      showSuccess("Savings goal added.", { duration: 5000 })
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Couldn't add the savings goal.", { duration: 5000 })
+      throw err
     } finally {
       setSaving(false)
     }
   }
 
   async function handleDelete(id: number) {
-    await deleteSavingsGoal(id)
-    await refresh()
-    onChange?.()
+    try {
+      await deleteSavingsGoal(id)
+      await refresh()
+      onChange?.()
+      showSuccess("Savings goal deleted.", { duration: 5000 })
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Couldn't delete the savings goal.", { duration: 5000 })
+      throw err
+    }
   }
 
   return (

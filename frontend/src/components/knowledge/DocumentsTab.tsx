@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react"
 import { Check, ExternalLink, FileText, Pencil, Trash2, Upload, X } from "lucide-react"
+import { showSuccess, showError } from "@/lib/toast"
 import {
   type KnowledgeDocument,
   deleteDocument,
@@ -64,8 +65,11 @@ export function DocumentsTab() {
       })
       resetForm()
       await refresh()
+      showSuccess("Document uploaded.", { duration: 5000 })
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Upload failed.")
+      const message = err instanceof Error ? err.message : "Upload failed."
+      setError(message)
+      showError(message, { duration: 5000 })
     } finally {
       setSaving(false)
     }
@@ -73,8 +77,14 @@ export function DocumentsTab() {
 
   async function handleDelete(id: number) {
     if (!window.confirm("Delete this document? This removes it from semantic search too.")) return
-    await deleteDocument(id)
-    await refresh()
+    try {
+      await deleteDocument(id)
+      await refresh()
+      showSuccess("Document deleted.", { duration: 5000 })
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Couldn't delete the document.", { duration: 5000 })
+      throw err
+    }
   }
 
   function startRename(doc: KnowledgeDocument) {
@@ -85,9 +95,15 @@ export function DocumentsTab() {
   async function handleRenameSave(id: number) {
     const value = renameValue.trim()
     if (!value) return
-    const updated = await renameDocument(id, value)
-    setDocuments((prev) => prev.map((d) => (d.id === id ? updated : d)))
-    setRenamingId(null)
+    try {
+      const updated = await renameDocument(id, value)
+      setDocuments((prev) => prev.map((d) => (d.id === id ? updated : d)))
+      setRenamingId(null)
+      showSuccess("Document renamed.", { duration: 5000 })
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Couldn't rename the document.", { duration: 5000 })
+      throw err
+    }
   }
 
   return (

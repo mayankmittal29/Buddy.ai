@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from "react"
-import { Link, NavLink } from "react-router-dom"
-import { Bell, House, Info, Settings, User } from "lucide-react"
+import { Link, NavLink, useNavigate } from "react-router-dom"
+import { Bell, House, Info, LogOut, Settings, User } from "lucide-react"
+import { showSuccess } from "@/lib/toast"
 import UserAvatar from "@/components/UserAvatar"
 import { getUnreadNotificationCount } from "@/components/notifications/api"
 import { SKILLS } from "@/config/skills"
+import { useAuthStore } from "@/stores/authStore"
 import { cn } from "@/lib/utils"
 
 /** Shared base for the 9 skill nav buttons — same color for every one,
@@ -18,6 +20,16 @@ export default function Navbar() {
   const [unreadCount, setUnreadCount] = useState(0)
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
+  const navigate = useNavigate()
+  const authUser = useAuthStore((s) => s.user)
+  const logout = useAuthStore((s) => s.logout)
+
+  async function handleLogout() {
+    setMenuOpen(false)
+    await logout()
+    showSuccess("Logged out.", { duration: 5000 })
+    navigate("/login", { replace: true })
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -115,13 +127,26 @@ export default function Navbar() {
             onClick={() => setMenuOpen((v) => !v)}
             aria-label="Account menu"
             aria-expanded={menuOpen}
-            className="block rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+            className="flex items-center gap-2 rounded-full focus-visible:outline-2 focus-visible:outline-primary"
           >
             <UserAvatar />
+            {authUser?.name && (
+              <span className="hidden max-w-32 truncate text-sm font-medium text-foreground sm:inline">
+                {authUser.name}
+              </span>
+            )}
           </button>
 
           {menuOpen && (
-            <div className="absolute top-full right-0 z-50 mt-2 w-44 overflow-hidden rounded-xl border border-border-subtle bg-surface py-1 shadow-card-hover">
+            <div className="absolute top-full right-0 z-50 mt-2 w-48 overflow-hidden rounded-xl border border-border-subtle bg-surface py-1 shadow-card-hover">
+              {authUser?.name && (
+                <div className="border-b border-border-subtle px-3 py-2">
+                  <p className="truncate text-sm font-semibold text-foreground">
+                    {authUser.name}
+                  </p>
+                  <p className="truncate text-xs text-muted-foreground">{authUser.username}</p>
+                </div>
+              )}
               <Link
                 to="/profile"
                 onClick={() => setMenuOpen(false)}
@@ -146,6 +171,14 @@ export default function Navbar() {
                 <Settings className="size-4" />
                 Settings
               </Link>
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="flex w-full items-center gap-2 border-t border-border-subtle px-3 py-2 text-left text-sm text-destructive transition-colors duration-150 hover:bg-destructive/10"
+              >
+                <LogOut className="size-4" />
+                Log out
+              </button>
             </div>
           )}
         </div>

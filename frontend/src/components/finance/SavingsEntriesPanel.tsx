@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import { showSuccess, showError } from "@/lib/toast"
 import { PiggyBank, Plus, Trash2 } from "lucide-react"
 import {
   type SavingsEntry,
@@ -55,15 +56,25 @@ export function SavingsEntriesPanel({ refreshToken, onChange }: SavingsEntriesPa
       setNotes("")
       await refresh()
       onChange?.()
+      showSuccess("Savings entry added.", { duration: 5000 })
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Couldn't add the savings entry.", { duration: 5000 })
+      throw err
     } finally {
       setSaving(false)
     }
   }
 
   async function handleDelete(id: number) {
-    await deleteSavingsEntry(id)
-    await refresh()
-    onChange?.()
+    try {
+      await deleteSavingsEntry(id)
+      await refresh()
+      onChange?.()
+      showSuccess("Savings entry deleted.", { duration: 5000 })
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Couldn't delete the savings entry.", { duration: 5000 })
+      throw err
+    }
   }
 
   const total = entries.reduce((sum, e) => sum + e.amount, 0)

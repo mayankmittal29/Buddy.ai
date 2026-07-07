@@ -504,3 +504,66 @@ class DocumentChunk(Base):
     chunk_text: Mapped[str] = mapped_column(Text)
     embedding: Mapped[list[float]] = mapped_column(Vector(768))
     chunk_index: Mapped[int] = mapped_column(Integer)
+
+
+class Gender(str, enum.Enum):
+    male = "male"
+    female = "female"
+    other = "other"
+    prefer_not_to_say = "prefer_not_to_say"
+
+
+class User(Base):
+    """A real account (email or mobile number as username), separate from
+    the single-row UserProfile/NotificationPreferences tables the rest of
+    the app still uses — this app remains single-user in its data model
+    (tasks/habits/finance/etc. are not scoped per-account); User only backs
+    login/signup and is the identity behind the navbar's displayed name.
+    """
+
+    __tablename__ = "users"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    username: Mapped[str] = mapped_column(Text, unique=True, index=True)
+    password_hash: Mapped[str] = mapped_column(Text)
+    name: Mapped[str] = mapped_column(Text)
+    occupation: Mapped[str] = mapped_column(Text, default="")
+    current_ctc: Mapped[float | None] = mapped_column(Float, nullable=True)
+    gender: Mapped[Gender] = mapped_column(Enum(Gender))
+    dob: Mapped[date] = mapped_column(Date)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
+class RefreshToken(Base):
+    """One row per issued refresh token (opaque random string, only its
+    SHA-256 hash stored) — rotated on every /api/auth/refresh call and
+    revocable individually (logout) or in bulk (password reset)."""
+
+    __tablename__ = "refresh_tokens"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    token_hash: Mapped[str] = mapped_column(Text, unique=True, index=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    revoked: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
+class PasswordResetToken(Base):
+    """One row per requested password reset (opaque random string emailed
+    to the user, only its SHA-256 hash stored) — single-use, short-lived."""
+
+    __tablename__ = "password_reset_tokens"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    token_hash: Mapped[str] = mapped_column(Text, unique=True, index=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    used: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
