@@ -18,6 +18,29 @@ Buddy is a single conversational agent that plans your day, tracks your tasks, c
 
 Buddy is built on **Google's Agent Development Kit (ADK)** as one root agent that loads a different "skill" — its own tools, prompts, and data boundaries — depending on what you're doing, instead of running nine separate bots. It standardizes tool access through **MCP**, keeps a two-tier memory (short-term session state + long-term semantic recall over `pgvector`), and treats safety as a first-class feature: every consequential action needs your explicit confirmation before it happens.
 
+# 🛠️ Technology Stack
+
+| 🏷️ Category | 🚀 Technologies |
+|-------------|-----------------|
+| 🎨 **Frontend** | React 19, Vite 6, TypeScript, Tailwind CSS v4, shadcn/ui, Base UI, React Router, Recharts |
+| ⚙️ **Backend** | FastAPI, Google Agent Development Kit (ADK), SQLAlchemy (Async), Pydantic, Alembic, APScheduler, LiteLLM |
+| 🤖 **AI & Agent Framework** | Google ADK, MCP (Model Context Protocol), Multi-Skill Agent Architecture, Progressive Disclosure, Tool Calling |
+| 🧠 **LLM Providers** | Gemini, Groq, Hugging Face Inference Providers |
+| 🗄️ **Database** | PostgreSQL, pgvector |
+| 💾 **Memory Architecture** | Short-Term Session Memory, Long-Term Semantic Memory (PostgreSQL + pgvector) |
+| 📂 **Object Storage** | Cloudinary, Cloudflare R2 |
+| 🔍 **Vector Search** | pgvector (Semantic Embeddings & Similarity Search) |
+| 🔗 **Tool Integration** | Custom `buddy-mcp` Server, arXiv API, GitHub API, Hacker News API |
+| 📄 **Document Processing** | pdfplumber, python-docx, ReportLab, DefusedXML |
+| 📊 **Analytics & Visualization** | Recharts |
+| ⏰ **Scheduling & Notifications** | APScheduler, SMTP Email Notifications |
+| 🔒 **Security & Guardrails** | Human-in-the-Loop (HITL), Prompt Injection Protection, PII Redaction, Tool Allow-listing, Secret Scanning, Semgrep Static Analysis |
+| 📈 **Observability** | LangSmith |
+| 🧪 **Testing & Evaluation** | Pytest, Evaluation-Driven Development (EDD), Golden Test Cases, Tool Trajectory Validation |
+| 🐳 **Containerization** | Docker, Docker Compose |
+| 🛠️ **Development Tools** | Git, GitHub, Ruff, Black, Pre-commit Hooks, Detect-Secrets |
+| ☁️ **Deployment (Planned)** | Google Cloud Run / Railway / Render |
+
 ## 🧩 The Nine Skills
 
 <div align="center">
@@ -50,6 +73,14 @@ Frontend (React) → Backend (FastAPI) → ADK Orchestrator (Agentic Core) → M
 
 ---
 
+## 🧩 Dashboard
+
+<div align="center">
+
+![Buddy Dashboard](assets/dashboard.png)
+
+</div>
+---
 ## 📁 Project Structure
 
 ```
